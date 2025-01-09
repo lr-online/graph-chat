@@ -478,8 +478,24 @@
         }
 
         function connectWebSocket() {
-            ws = new WebSocket('ws://localhost:9000/ws');
+            console.log('开始建立WebSocket连接');
+            // 获取当前页面的主机名和端口
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname;
+            const port = '9000'; // 或者使用 window.location.port 如果端口与页面端口相同
             
+            const wsUrl = `${protocol}//${host}:${port}/api/ws`; // 添加额外的路径前缀
+            console.log('WebSocket连接URL:', wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+            updateConnectionStatus('connecting');
+
+            ws.onopen = function() {
+                console.log('WebSocket连接已建立');
+                updateConnectionStatus('connected');
+                reconnectAttempts = 0;
+            };
+
             // WebSocket 事件处理程序应该在这里定义
             ws.onmessage = async (event) => {
                 const data = JSON.parse(event.data);
@@ -508,17 +524,10 @@
                 }
             };
 
-            ws.onopen = () => {
-                updateConnectionStatus('connected');
-                reconnectAttempts = 0;
-            };
-
             ws.onerror = (error) => {
                 console.error('WebSocket错误:', error);
                 updateConnectionStatus('disconnected');
             };
-
-            updateConnectionStatus('connecting');
         }
 
         function showError(message) {
