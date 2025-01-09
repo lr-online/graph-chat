@@ -7,6 +7,13 @@
     <!-- 使用vis-network的最新稳定版本 -->
     <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <!-- 添加 marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 添加代码高亮 -->
+    <link href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
+    <!-- 添加 Mermaid -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -310,6 +317,104 @@
         .input-wrapper input:focus {
             outline: none;
         }
+
+        /* Markdown 样式 */
+        .message-content {
+            line-height: 1.5;
+        }
+
+        .message-content p {
+            margin: 0 0 1em;
+        }
+
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-content pre {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 1em;
+            overflow-x: auto;
+            margin: 0.5em 0;
+        }
+
+        .message-content code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            padding: 0.2em 0.4em;
+            background: #f8f9fa;
+            border-radius: 3px;
+        }
+
+        .message-content pre code {
+            padding: 0;
+            background: transparent;
+        }
+
+        .message-content ul, .message-content ol {
+            margin: 0.5em 0;
+            padding-left: 1.5em;
+        }
+
+        .message-content blockquote {
+            margin: 0.5em 0;
+            padding-left: 1em;
+            border-left: 4px solid #e9ecef;
+            color: #666;
+        }
+
+        /* 调整用户消息中的 Markdown 样式 */
+        .message.user .message-content code {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .message.user .message-content pre {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .message.user .message-content blockquote {
+            border-left-color: rgba(255, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Mermaid 图表样式 */
+        .mermaid {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .message.user .mermaid {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* 等待渲染的 Mermaid 图表 */
+        .mermaid-loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        /* Mermaid 错误提示 */
+        .mermaid .error {
+            color: #dc3545;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #dc3545;
+            background: #f8d7da;
+        }
     </style>
 </head>
 <body>
@@ -392,17 +497,10 @@
                 // 更新调试信息和知识图谱
                 const debugData = data.debug_info || {};
                 
-                // 每次收到消息都尝试更新知识图谱
                 try {
-                    console.log('收到WebSocket消息中的知识图谱数据:', data.knowledge_graph);
-                    if (!network) {
-                        console.warn('network实例不存在，重新初始化图谱');
-                        initGraph();
-                    }
                     updateKnowledgeGraph(data.knowledge_graph);
                 } catch (e) {
                     console.error('更新知识图谱失败:', e);
-                    console.error('错误详情:', e.stack);
                 }
                 
                 // 移除打字机指示器
@@ -411,17 +509,35 @@
                     typingIndicator.remove();
                 }
                 
-                // 添加用户消息（带有完整的topic信息）
-                if (data.history && data.history.length >= 2) {
-                    const userMessage = data.history[data.history.length - 2]; // 倒数第二条是用户消息
-                    if (userMessage && userMessage.content) {
-                        addMessage('user', userMessage.content, false, userMessage.topic);
-                    }
-                }
-                
                 // 添加助手消息到聊天界面（使用打字机效果）
                 if (data.response) {
-                    addMessage('assistant', data.response, true, debugData.assistant_message?.topic || '未分类');
+                    // 获取AI消息的话题
+                    const aiTopic = debugData.assistant_message?.topic || '未分类';
+                    
+                    // 更新最后一条用户消息的话题
+                    const lastUserMessage = chatMessages.querySelector('.message.user:last-of-type');
+                    if (lastUserMessage) {
+                        const currentTopic = lastUserMessage.getAttribute('data-topic');
+                        // 如果当前没有话题或话题是"未分类"，则更新为AI的话题
+                        if (!currentTopic || currentTopic === '未分类') {
+                            lastUserMessage.setAttribute('data-topic', aiTopic);
+                            
+                            // 检查是否需要添加话题分隔符
+                            const previousMessage = lastUserMessage.previousElementSibling;
+                            if (previousMessage && previousMessage.classList.contains('message')) {
+                                const previousTopic = previousMessage.getAttribute('data-topic');
+                                if (previousTopic !== aiTopic) {
+                                    const divider = document.createElement('div');
+                                    divider.className = 'topic-divider';
+                                    divider.innerHTML = `<span class="topic-label">话题: ${aiTopic}</span>`;
+                                    lastUserMessage.parentNode.insertBefore(divider, lastUserMessage);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 添加AI回复消息
+                    addMessage('assistant', data.response, true, aiTopic);
                 }
             };
 
@@ -474,16 +590,114 @@
             });
         }
 
+        // 自定义 marked 渲染器来处理 Mermaid
+        const renderer = new marked.Renderer();
+        const originalCodeRenderer = renderer.code.bind(renderer);
+        renderer.code = function(code, language) {
+            // 检查是否是 mermaid 代码块
+            if (language && language.match(/^mermaid/i)) {
+                const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                return `<div class="mermaid-loading">图表加载中...</div><pre class="mermaid" id="${id}">${code}</pre>`;
+            }
+            return originalCodeRenderer(code, language);
+        };
+        
+        // 初始化 Mermaid
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            timeline: {
+                useMaxWidth: false,
+                padding: 20
+            },
+            gantt: {
+                titleTopMargin: 25,
+                barHeight: 20,
+                barGap: 4,
+                topPadding: 50,
+                sidePadding: 50
+            }
+        });
+        
+        // 初始化 marked 配置
+        marked.setOptions({
+            renderer: renderer,
+            highlight: function(code, language) {
+                if (language === 'mermaid') return code;
+                const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
+                return hljs.highlight(code, { language: validLanguage }).value;
+            },
+            langPrefix: 'hljs language-',
+            pedantic: false,
+            gfm: true,
+            breaks: true,
+            sanitize: false,
+            smartypants: false,
+            xhtml: false
+        });
+
+        // 渲染 Mermaid 图表
+        async function renderMermaidDiagrams(element) {
+            const mermaidDivs = element.querySelectorAll('.mermaid');
+            for (const div of mermaidDivs) {
+                try {
+                    const loadingDiv = div.previousElementSibling;
+                    if (loadingDiv && loadingDiv.classList.contains('mermaid-loading')) {
+                        const id = div.id;
+                        const code = div.textContent;
+                        
+                        // 清空当前内容
+                        div.textContent = '';
+                        
+                        // 尝试渲染图表
+                        try {
+                            await mermaid.parse(code);  // 先解析检查语法
+                            const { svg } = await mermaid.render(id, code);
+                            div.innerHTML = svg;
+                            console.log('Mermaid 图表渲染成功');
+                        } catch (renderError) {
+                            console.error('Mermaid 语法错误:', renderError);
+                            // 如果渲染失败，显示原始代码
+                            div.innerHTML = `<pre><code>${code}</code></pre>`;
+                        }
+                        
+                        // 移除加载提示
+                        loadingDiv.remove();
+                    }
+                } catch (error) {
+                    console.error('Mermaid 渲染错误:', error);
+                    div.innerHTML = `<div class="error">图表渲染失败: ${error.message}</div>
+                                    <pre><code>${div.textContent}</code></pre>`;
+                }
+            }
+        }
+
         async function typeWriter(element, text) {
             if (!text) {
                 console.warn('typeWriter: text is undefined or empty');
                 return;
             }
-            const delay = 30; // 每个字符的延迟时间（毫秒）
-            for (let i = 0; i < text.length; i++) {
-                element.textContent += text[i];
-                await new Promise(resolve => setTimeout(resolve, delay));
+            // 解析 Markdown
+            const htmlContent = marked.parse(text);
+            // 分段添加 HTML 内容
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            const nodes = Array.from(tempDiv.childNodes);
+            
+            for (const node of nodes) {
+                const clone = node.cloneNode(true);
+                element.appendChild(clone);
+                await new Promise(resolve => setTimeout(resolve, 30));
             }
+            
+            // 高亮代码块
+            element.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightBlock(block);
+            });
+            
+            // 渲染 Mermaid 图表
+            await renderMermaidDiagrams(element);
         }
 
         function addMessage(role, content, useTypeWriter = false, topic = '未分类') {
@@ -495,26 +709,41 @@
             const lastTopic = lastMessage?.getAttribute('data-topic');
             const currentTopic = topic;
             
-            // 如果话题改变，添加分割线
-            if (lastTopic && currentTopic && lastTopic !== currentTopic) {
-                const divider = document.createElement('div');
-                divider.className = 'topic-divider';
-                divider.innerHTML = `<span class="topic-label">话题: ${currentTopic}</span>`;
-                chatMessages.appendChild(divider);
+            // 如果提供了新话题且不是null，则添加话题分隔符
+            if (topic && role === 'user') {
+                // 如果话题改变，添加分割线
+                if (lastTopic && currentTopic && lastTopic !== currentTopic) {
+                    const divider = document.createElement('div');
+                    divider.className = 'topic-divider';
+                    divider.innerHTML = `<span class="topic-label">话题: ${currentTopic}</span>`;
+                    chatMessages.appendChild(divider);
+                }
             }
             
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
-            messageDiv.setAttribute('data-topic', currentTopic);
+            messageDiv.setAttribute('data-topic', topic);
             
             const timestamp = formatTimestamp();
             
+            // 处理 Markdown
+            const htmlContent = useTypeWriter ? '' : marked.parse(content);
+            
             messageDiv.innerHTML = `
                 <span class="message-timestamp">${timestamp}</span>
-                <div class="message-content">${useTypeWriter ? '' : content}</div>
+                <div class="message-content">${useTypeWriter ? '' : htmlContent}</div>
             `;
             
             chatMessages.appendChild(messageDiv);
+            
+            // 如果不使用打字机效果，立即渲染
+            if (!useTypeWriter) {
+                messageDiv.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightBlock(block);
+                });
+                renderMermaidDiagrams(messageDiv);
+            }
+            
             scrollToBottom();
 
             if (useTypeWriter) {
@@ -556,6 +785,9 @@
         function sendMessage() {
             const message = messageInput.value.trim();
             if (message && ws && ws.readyState === WebSocket.OPEN) {
+                // 先添加用户消息到聊天界面
+                addMessage('user', message, false);  // 不设置话题，等待AI回复后再设置
+                
                 // 添加打字机指示器
                 const timestamp = addTypingIndicator();
                 
