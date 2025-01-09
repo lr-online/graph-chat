@@ -4,23 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI聊天助手</title>
+    <!-- 使用vis-network的最新稳定版本 -->
+    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
+            overflow: hidden;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+            height: 95vh;
+            max-width: 100%;
+            margin: 0 auto;
         }
 
         .chat-container {
-            max-width: 800px;
-            margin: 0 auto;
+            flex: 1;
             background: white;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
-            height: 90vh;
+            min-width: 0;
+        }
+
+        .graph-container {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .graph-header {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: bold;
+            color: #333;
+            flex-shrink: 0;
+        }
+
+        #knowledge-graph {
+            flex: 1;
+            background-color: #fafafa;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+        }
+
+        #knowledge-graph canvas {
+            width: 100% !important;
+            height: 100% !important;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         .chat-messages {
@@ -44,6 +92,36 @@
             padding: 10px 15px;
             border-radius: 15px;
             margin: 0 10px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .topic-divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 30px 0;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in-out forwards;
+            position: relative;
+        }
+
+        .topic-divider::before,
+        .topic-divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .topic-label {
+            margin: 0 15px;
+            padding: 5px 15px;
+            font-size: 13px;
+            color: #666;
+            background: #fff;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .user .message-content {
@@ -84,97 +162,709 @@
             background-color: #0056b3;
         }
 
-        .debug-panel {
-            position: fixed;
-            right: 20px;
-            top: 20px;
-            width: 300px;
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: none;
+        .message-timestamp {
+            font-size: 12px;
+            color: #999;
+            margin: 0 10px;
+        }
+        
+        .message-status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            text-align: center;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f0f2f5;
+            border-radius: 15px;
+            margin: 10px 0;
+            width: fit-content;
+        }
+        
+        .typing-indicator span {
+            display: block;
+            width: 6px;
+            height: 6px;
+            background-color: #0084ff;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out;
+            animation-fill-mode: both;
+        }
+        
+        .typing-indicator span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
         }
 
-        #debugToggle {
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .message-content {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .typing-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .typing-text {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .connection-status {
             position: fixed;
-            right: 20px;
-            top: 20px;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 14px;
             z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .connection-status.connected {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .connection-status.disconnected {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .connection-status.connecting {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        .connection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .connection-indicator.connected {
+            background-color: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-indicator.disconnected {
+            background-color: #dc3545;
+        }
+
+        .connection-indicator.connecting {
+            background-color: #ffc107;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 0 10px;
+        }
+
+        .input-wrapper input {
+            border: none;
+            flex-grow: 1;
+            padding: 10px 0;
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
         }
     </style>
 </head>
 <body>
-    <button id="debugToggle">显示/隐藏调试信息</button>
+    <div id="connectionStatus" class="connection-status">连接中...</div>
     
-    <div class="chat-container">
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="input-container">
-            <input type="text" id="messageInput" placeholder="输入消息...">
-            <button onclick="sendMessage()">发送</button>
+    <div class="main-container">
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <span id="connectionIndicator" class="connection-indicator"></span>
+                    <input type="text" id="messageInput" placeholder="输入消息...">
+                </div>
+                <button id="sendButton" onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+        
+        <div class="graph-container">
+            <div class="graph-header">知识图谱</div>
+            <div id="knowledge-graph"></div>
         </div>
     </div>
 
-    <div class="debug-panel" id="debugPanel">
-        <h3>调试信息</h3>
-        <pre id="debugInfo"></pre>
-    </div>
-
     <script>
+        console.log('脚本开始执行');
         const clientId = Date.now().toString();
-        let ws = new WebSocket(`ws://localhost:9000/ws/${clientId}`);
-        const chatMessages = document.getElementById('chatMessages');
-        const messageInput = document.getElementById('messageInput');
-        const debugPanel = document.getElementById('debugPanel');
-        const debugInfo = document.getElementById('debugInfo');
-
-        document.getElementById('debugToggle').onclick = () => {
-            debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
-        };
-
-        ws.onmessage = function(event) {
-            const data = JSON.parse(event.data);
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 3000;
+        
+        // 确保DOM元素存在
+        let chatMessages, messageInput, sendButton, connectionStatus, connectionIndicator;
+        
+        function initializeElements() {
+            console.log('初始化DOM元素');
+            chatMessages = document.getElementById('chatMessages');
+            messageInput = document.getElementById('messageInput');
+            sendButton = document.getElementById('sendButton');
+            connectionStatus = document.getElementById('connectionStatus');
+            connectionIndicator = document.getElementById('connectionIndicator');
             
-            // 添加助手消息到聊天界面
-            addMessage('assistant', data.response);
+            if (!chatMessages || !messageInput || !sendButton || !connectionStatus || !connectionIndicator) {
+                console.error('某些DOM元素未找到:', {
+                    chatMessages: !!chatMessages,
+                    messageInput: !!messageInput,
+                    sendButton: !!sendButton,
+                    connectionStatus: !!connectionStatus,
+                    connectionIndicator: !!connectionIndicator
+                });
+                return;
+            }
+
+            // 绑定事件监听器
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
             
-            // 更新调试信息
-            debugInfo.textContent = JSON.stringify(data.debug_info, null, 2);
-        };
+            console.log('DOM元素初始化和事件绑定完成');
+        }
 
-        ws.onclose = function() {
-            console.log('WebSocket连接已关闭');
-            // 可以在这里添加重连逻辑
-        };
+        function connectWebSocket() {
+            console.log('开始建立WebSocket连接');
+            ws = new WebSocket(`ws://localhost:9000/ws/${clientId}`);
+            updateConnectionStatus('connecting');
 
-        function addMessage(role, content) {
+            ws.onopen = function() {
+                console.log('WebSocket连接已建立');
+                updateConnectionStatus('connected');
+                reconnectAttempts = 0;
+            };
+
+            ws.onmessage = function(event) {
+                console.log('收到WebSocket消息:', event.data);
+                const data = JSON.parse(event.data);
+                
+                // 更新调试信息和知识图谱
+                const debugData = data.debug_info || {};
+                
+                // 每次收到消息都尝试更新知识图谱
+                try {
+                    console.log('收到WebSocket消息中的知识图谱数据:', data.knowledge_graph);
+                    if (!network) {
+                        console.warn('network实例不存在，重新初始化图谱');
+                        initGraph();
+                    }
+                    updateKnowledgeGraph(data.knowledge_graph);
+                } catch (e) {
+                    console.error('更新知识图谱失败:', e);
+                    console.error('错误详情:', e.stack);
+                }
+                
+                // 移除打字机指示器
+                const typingIndicator = document.querySelector('.typing-wrapper')?.closest('.message');
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+                
+                // 添加用户消息（带有完整的topic信息）
+                if (data.history && data.history.length >= 2) {
+                    const userMessage = data.history[data.history.length - 2]; // 倒数第二条是用户消息
+                    if (userMessage && userMessage.content) {
+                        addMessage('user', userMessage.content, false, userMessage.topic);
+                    }
+                }
+                
+                // 添加助手消息到聊天界面（使用打字机效果）
+                if (data.response) {
+                    addMessage('assistant', data.response, true, debugData.assistant_message?.topic || '未分类');
+                }
+            };
+
+            ws.onclose = function() {
+                console.log('WebSocket连接已关闭');
+                updateConnectionStatus('disconnected');
+                
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    setTimeout(() => {
+                        reconnectAttempts++;
+                        console.log(`尝试重新连接 (${reconnectAttempts}/${maxReconnectAttempts})...`);
+                        connectWebSocket();
+                    }, reconnectDelay);
+                }
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket错误:', error);
+            };
+        }
+
+        function updateConnectionStatus(status) {
+            connectionStatus.className = 'connection-status ' + status;
+            connectionIndicator.className = 'connection-indicator ' + status;
+            switch(status) {
+                case 'connected':
+                    connectionStatus.textContent = '已连接';
+                    messageInput.placeholder = '输入消息...';
+                    setTimeout(() => connectionStatus.style.opacity = '0', 2000);
+                    break;
+                case 'disconnected':
+                    connectionStatus.textContent = '连接断开';
+                    messageInput.placeholder = '连接断开，正在重试...';
+                    connectionStatus.style.opacity = '1';
+                    break;
+                case 'connecting':
+                    connectionStatus.textContent = '连接中...';
+                    messageInput.placeholder = '正在连接...';
+                    connectionStatus.style.opacity = '1';
+                    break;
+            }
+            sendButton.disabled = status !== 'connected';
+        }
+
+        function formatTimestamp() {
+            const now = new Date();
+            return now.toLocaleTimeString('zh-CN', { 
+                hour: '2-digit', 
+                minute: '2-digit'
+            });
+        }
+
+        async function typeWriter(element, text) {
+            if (!text) {
+                console.warn('typeWriter: text is undefined or empty');
+                return;
+            }
+            const delay = 30; // 每个字符的延迟时间（毫秒）
+            for (let i = 0; i < text.length; i++) {
+                element.textContent += text[i];
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+
+        function addMessage(role, content, useTypeWriter = false, topic = '未分类') {
+            if (!content) {
+                console.warn('addMessage: content is undefined or empty');
+                return;
+            }
+            const lastMessage = chatMessages.lastElementChild;
+            const lastTopic = lastMessage?.getAttribute('data-topic');
+            const currentTopic = topic;
+            
+            // 如果话题改变，添加分割线
+            if (lastTopic && currentTopic && lastTopic !== currentTopic) {
+                const divider = document.createElement('div');
+                divider.className = 'topic-divider';
+                divider.innerHTML = `<span class="topic-label">话题: ${currentTopic}</span>`;
+                chatMessages.appendChild(divider);
+            }
+            
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
+            messageDiv.setAttribute('data-topic', currentTopic);
+            
+            const timestamp = formatTimestamp();
+            
             messageDiv.innerHTML = `
-                <div class="message-content">${content}</div>
+                <span class="message-timestamp">${timestamp}</span>
+                <div class="message-content">${useTypeWriter ? '' : content}</div>
             `;
+            
             chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            scrollToBottom();
+
+            if (useTypeWriter) {
+                const contentDiv = messageDiv.querySelector('.message-content');
+                typeWriter(contentDiv, content);
+            }
+        }
+
+        function scrollToBottom() {
+            // 使用 requestAnimationFrame 确保在DOM更新后滚动
+            requestAnimationFrame(() => {
+                const lastMessage = chatMessages.lastElementChild;
+                lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            });
+        }
+
+        function addTypingIndicator() {
+            const indicatorDiv = document.createElement('div');
+            indicatorDiv.className = 'message assistant';
+            const timestamp = formatTimestamp();
+            indicatorDiv.innerHTML = `
+                <span class="message-timestamp">${timestamp}</span>
+                <div class="message-content">
+                    <div class="typing-wrapper">
+                        <div class="typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span class="typing-text">AI正在思考...</span>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(indicatorDiv);
+            scrollToBottom();
+            return timestamp;
         }
 
         function sendMessage() {
             const message = messageInput.value.trim();
-            if (message && ws.readyState === WebSocket.OPEN) {
-                // 添加用户消息到聊天界面
-                addMessage('user', message);
+            if (message && ws && ws.readyState === WebSocket.OPEN) {
+                // 添加打字机指示器
+                const timestamp = addTypingIndicator();
                 
                 // 发送消息到服务器
                 ws.send(message);
                 
                 // 清空输入框
                 messageInput.value = '';
+                
+                // 禁用发送按钮
+                sendButton.disabled = true;
+                setTimeout(() => sendButton.disabled = false, 500);
             }
         }
 
-        // 支持按回车发送消息
-        messageInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
+        // 初始化知识图谱
+        let network = null;
+        
+        function initGraph() {
+            const container = document.getElementById('knowledge-graph');
+            console.log('初始化知识图谱容器:', container);
+            if (!container) {
+                console.error('找不到知识图谱容器元素');
+                return;
+            }
+
+            // 设置容器尺寸
+            const graphContainer = container.closest('.graph-container');
+            const headerHeight = graphContainer.querySelector('.graph-header').offsetHeight;
+            container.style.height = `calc(100% - ${headerHeight}px)`;
+
+            // 检查vis.js是否正确加载
+            if (typeof vis === 'undefined') {
+                console.error('vis库未加载，等待加载完成后重试');
+                setTimeout(initGraph, 1000);
+                return;
+            }
+
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    size: 20,
+                    font: { size: 12, color: '#333' },
+                    borderWidth: 1,
+                    shadow: { enabled: true, size: 3, x: 1, y: 1 },
+                    fixed: false,
+                    mass: 2,
+                    physics: true
+                },
+                edges: {
+                    width: 1,
+                    color: { color: '#999' },
+                    arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                    font: { size: 10, color: '#666', align: 'middle' },
+                    smooth: { 
+                        enabled: true, 
+                        type: 'continuous',
+                        roundness: 0.3,
+                        dynamic: true
+                    }
+                },
+                physics: {
+                    stabilization: {
+                        enabled: true,
+                        iterations: 100,
+                        fit: true
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        centralGravity: 0.05,
+                        springLength: 200,
+                        springConstant: 0.04,
+                        damping: 0.09,
+                        avoidOverlap: 1
+                    },
+                    minVelocity: 0.1,
+                    maxVelocity: 50,
+                    solver: 'barnesHut',
+                    timestep: 0.5,
+                    adaptiveTimestep: true,
+                    enabled: true
+                },
+                layout: {
+                    randomSeed: 42,
+                    improvedLayout: true,
+                    hierarchical: {
+                        enabled: false,
+                        sortMethod: 'hubsize'
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 300,
+                    zoomView: true,
+                    dragView: true,
+                    dragNodes: true,
+                    hideEdgesOnDrag: false,
+                    navigationButtons: true,
+                    keyboard: true,
+                    multiselect: true,
+                    selectable: true,
+                    selectConnectedEdges: false,
+                    hoverConnectedEdges: true,
+                    hover: true,
+                    zoomSpeed: 0.6,
+                    dragView: true,
+                    dragNodes: true
+                },
+                configure: false,  // 禁用配置按钮
+                groups: {         // 定义节点组样式
+                    技术: { color: { background: '#90caf9' } },
+                    概念: { color: { background: '#a5d6a7' } },
+                    工具: { color: { background: '#ffcc80' } },
+                    方法: { color: { background: '#ef9a9a' } }
+                },
+                autoResize: true,    // 自动调整大小
+                height: '100%',      // 使用百分比高度
+                width: '100%'       // 使用百分比宽度
+            };
+
+            const data = {
+                nodes: new vis.DataSet([]),
+                edges: new vis.DataSet([])
+            };
+
+            console.log('创建网络实例前的配置:', { options, data });
+            try {
+                network = new vis.Network(container, data, options);
+                console.log('网络实例创建完成:', network);
+                
+                // 添加事件监听
+                network.on('stabilizationProgress', function(params) {
+                    console.log('布局进度:', params.iterations + '/' + params.total);
+                });
+                
+                network.on('stabilizationIterationsDone', function() {
+                    console.log('布局计算完成');
+                    network.setOptions({ physics: false });
+                    network.fit();
+                });
+                
+                network.on('stabilized', function(params) {
+                    console.log('网络已稳定，迭代次数:', params.iterations);
+                    network.setOptions({ physics: false });
+                });
+
+                // 添加错误处理
+                network.on('error', function(err) {
+                    console.error('网络错误:', err);
+                });
+
+                // 拖动开始时的处理
+                network.on('dragStart', function(params) {
+                    if (params.nodes.length > 0) {
+                        network.setOptions({
+                            physics: {
+                                enabled: true,
+                                barnesHut: {
+                                    gravitationalConstant: -1000,
+                                    centralGravity: 0.02,
+                                    damping: 0.08
+                                }
+                            }
+                        });
+                    }
+                });
+                
+                // 拖动结束时的处理
+                network.on('dragEnd', function(params) {
+                    if (params.nodes.length > 0) {
+                        // 给一个小延迟让惯性效果更自然
+                        setTimeout(() => {
+                            network.setOptions({
+                                physics: {
+                                    enabled: true,
+                                    barnesHut: {
+                                        gravitationalConstant: -2000,
+                                        centralGravity: 0.05,
+                                        damping: 0.09
+                                    }
+                                }
+                            });
+                        }, 300);
+                    }
+                });
+
+            } catch (e) {
+                console.error('创建网络实例失败:', e);
+                console.error('错误详情:', e.stack);
+            }
+        }
+
+        function updateKnowledgeGraph(graphData) {
+            console.group('更新知识图谱');
+            console.log('更新知识图谱数据:', graphData);
+            if (!network || !graphData) {
+                console.error('network或graphData无效');
+                console.groupEnd();
+                return;
+            }
+            
+            try {
+                // 临时减小物理引擎强度
+                network.setOptions({ 
+                    physics: {
+                        enabled: true,
+                        barnesHut: {
+                            gravitationalConstant: -1000,  // 拖动时减小排斥力
+                            centralGravity: 0.02,         // 减小向心力
+                            springLength: 200,            // 保持弹簧长度
+                            springConstant: 0.05,         // 增加弹簧弹性
+                            damping: 0.08                 // 减小阻尼增加惯性
+                        }
+                    }
+                });
+                
+                // 预处理节点数据
+                const nodeEntries = Object.entries(graphData.nodes);
+                console.log('节点数量:', nodeEntries.length);
+                
+                const nodes = new vis.DataSet(
+                    nodeEntries.map(([id, attrs]) => ({
+                        id,
+                        label: id,
+                        title: attrs.description || id,
+                        group: attrs.type || 'default',  // 使用组来设置颜色
+                        value: 1,
+                        scaling: {
+                            min: 16,
+                            max: 32
+                        },
+                        mass: 2,
+                        fixed: false
+                    }))
+                );
+
+                const edges = new vis.DataSet(
+                    graphData.edges.map((edge, index) => ({
+                        id: index,
+                        from: edge.source,
+                        to: edge.target,
+                        label: edge.relation,
+                        length: 200,
+                        smooth: {
+                            type: 'continuous',
+                            roundness: 0.5
+                        },
+                        width: 1.5
+                    }))
+                );
+
+                network.setData({ nodes, edges });
+                
+                // 使用setTimeout让DOM有时间更新
+                setTimeout(() => {
+                    // 恢复物理引擎参数
+                    network.setOptions({ 
+                        physics: {
+                            enabled: true,
+                            barnesHut: {
+                                gravitationalConstant: -3000,
+                                centralGravity: 0.1,
+                                springLength: 150,
+                                springConstant: 0.02,
+                                damping: 0.15,
+                                avoidOverlap: 1
+                            },
+                            minVelocity: 0.5,
+                            maxVelocity: 30,
+                            solver: 'barnesHut',
+                            timestep: 0.3,
+                        }
+                    });
+                    
+                    // 稳定后再次适应视图
+                    setTimeout(() => {
+                        network.fit({
+                            animation: {
+                                duration: 500,
+                                easingFunction: 'easeInOutQuad'
+                            }
+                        });
+                    }, 500);
+                }, 100);
+
+            } catch (e) {
+                console.error('设置图谱数据失败:', e);
+                console.error('错误详情:', e.stack);
+            }
+            console.groupEnd();
+        }
+
+        // 使用window.onload确保所有资源都加载完成
+        window.onload = function() {
+            console.log('页面完全加载完成');
+            initializeElements();
+            initGraph();  // 先初始化图谱
+            connectWebSocket();  // 再建立连接
+        };
+
+        // 同时保留DOMContentLoaded事件监听
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM内容加载完成');
+        });
+
+        // 添加窗口大小改变事件监听
+        window.addEventListener('resize', function() {
+            if (network) {
+                network.fit();
             }
         });
     </script>

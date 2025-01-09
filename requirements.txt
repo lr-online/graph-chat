@@ -3,3 +3,4 @@ networkx
 fastapi 
 uvicorn 
 websockets
+loguru

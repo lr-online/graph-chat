@@ -4,6 +4,7 @@ import json
 import networkx as nx
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple, Set
+from loguru import logger
 
 class Message:
     def __init__(self, content: str, role: str):
@@ -54,10 +55,10 @@ class KnowledgeGraph:
                         edge['target'],
                         relation=edge['relation']
                     )
-                print(f"已加载知识图谱: {len(data['nodes'])}个节点, {len(data['edges'])}条边")
+                logger.info(f"已加载知识图谱: {len(data['nodes'])}个节点, {len(data['edges'])}条边")
         except Exception as e:
-            print(f"加载知识图谱失败: {e}")
-            print("创建新的知识图谱...")
+            logger.error(f"加载知识图谱失败: {e}")
+            logger.info("创建新的知识图谱...")
             self.graph = nx.DiGraph()
     
     def save_graph(self) -> None:
@@ -83,9 +84,10 @@ class KnowledgeGraph:
             with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             os.replace(temp_path, self.save_path)
+            logger.debug(f"知识图谱已保存到: {self.save_path}")
             
         except Exception as e:
-            print(f"保存知识图谱失败: {e}")
+            logger.error(f"保存知识图谱失败: {e}")
     
     def update_concept(self, concept_name: str, new_attrs: Dict[str, str]) -> str:
         """更新概念的属性"""
@@ -212,6 +214,33 @@ class KnowledgeGraph:
         if concept not in self.graph:
             return None
         return dict(self.graph.nodes[concept])
+    
+    def get_graph_data(self) -> dict:
+        """获取知识图谱数据，用于前端可视化"""
+        try:
+            nodes = {}
+            for node in self.graph.nodes:
+                attrs = self.graph.nodes[node]
+                nodes[node] = {
+                    'type': attrs.get('type', 'default'),
+                    'description': attrs.get('description', ''),
+                    'context': attrs.get('context', '')
+                }
+
+            return {
+                'nodes': nodes,
+                'edges': [
+                    {
+                        'source': source,
+                        'target': target,
+                        'relation': self.graph.edges[source, target]['relation']
+                    }
+                    for source, target in self.graph.edges
+                ]
+            }
+        except Exception as e:
+            logger.error(f"获取知识图谱数据失败: {e}")
+            return {'nodes': {}, 'edges': []}
 
 class MemoryManager:
     def __init__(self):
@@ -248,10 +277,11 @@ class MemoryManager:
 
     def _analyze_message(self, message: Message):
         """分析消息的主题、重要性和embedding"""
-        window = self._get_analysis_window()
-        window.append(message)
+        try:
+            window = self._get_analysis_window()
+            window.append(message)
 
-        analysis_prompt = f"""分析以下对话的主题和重要性。
+            analysis_prompt = f"""分析以下对话的主题和重要性。
 对话历史:
 {self._format_messages_for_prompt(window)}
 
@@ -261,19 +291,19 @@ class MemoryManager:
     "importance": 重要性分数(1-5,5最重要)
 }}"""
 
-        response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": analysis_prompt}],
-            response_format={"type": "json_object"},
-        )
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": analysis_prompt}],
+                response_format={"type": "json_object"},
+            )
 
-        try:
             analysis = json.loads(response.choices[0].message.content)
             message.topic = analysis["topic"]
             message.importance = analysis["importance"]
             message.embedding = self._get_embedding(message.content)
+            logger.debug(f"消息分析完成 - 主题: {message.topic}, 重要性: {message.importance}")
         except Exception as e:
-            print(f"Analysis error: {e}")
+            logger.error(f"消息分析错误: {e}")
             message.topic = "未分类"
             message.importance = 1
             message.embedding = None
@@ -309,13 +339,14 @@ class MemoryManager:
 
     def extract_knowledge(self) -> None:
         """从对话历史中提取知识并构建知识图谱"""
-        recent_messages = self.messages[-5:]
-        conversation_history = self._format_messages_for_prompt(recent_messages)
-        
-        # 获取当前图谱中的概念
-        current_concepts = list(self.knowledge_graph.graph.nodes)
-        
-        extraction_prompt = f"""分析以下对话，提取关键概念和它们之间的关系。
+        try:
+            recent_messages = self.messages[-5:]
+            conversation_history = self._format_messages_for_prompt(recent_messages)
+            
+            # 获取当前图谱中的概念
+            current_concepts = list(self.knowledge_graph.graph.nodes)
+            
+            extraction_prompt = f"""分析以下对话，提取关键概念和它们之间的关系。
 
 当前知识库中已有的概念：
 {', '.join(current_concepts)}
@@ -348,7 +379,6 @@ class MemoryManager:
     ]
 }}"""
 
-        try:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": extraction_prompt}],
@@ -357,12 +387,12 @@ class MemoryManager:
             
             knowledge = json.loads(response.choices[0].message.content)
             
-            print("\n[Debug] 知识图谱更新:")
+            logger.info("开始更新知识图谱")
             
             # 添加新概念
             new_nodes = self.knowledge_graph.add_knowledge(knowledge["concepts"])
             for log in new_nodes:
-                print(log)
+                logger.debug(log)
             
             # 添加新关系
             for relation in knowledge["relations"]:
@@ -372,7 +402,7 @@ class MemoryManager:
                     relation["relation"]
                 )
                 if log:
-                    print(log)
+                    logger.debug(log)
             
             # 更新消息的相关节点
             for msg in recent_messages:
@@ -381,12 +411,10 @@ class MemoryManager:
                     if concept["concept"].lower() in msg.content.lower():
                         msg.related_nodes.append(concept["concept"])
             
-            print(f"\n当前知识图谱统计:")
-            print(f"- 节点数: {self.knowledge_graph.graph.number_of_nodes()}")
-            print(f"- 边数: {self.knowledge_graph.graph.number_of_edges()}")
+            logger.info(f"知识图谱更新完成 - 节点数: {self.knowledge_graph.graph.number_of_nodes()}, 边数: {self.knowledge_graph.graph.number_of_edges()}")
             
         except Exception as e:
-            print(f"Knowledge extraction error: {e}")
+            logger.error(f"知识提取错误: {e}")
 
 class Agent:
     def __init__(self, system_prompt: str = "你是一个有帮助的AI助手"):
@@ -457,7 +485,7 @@ class Agent:
     
 
 if __name__ == "__main__":
-    print("\n欢迎使用智能对话系统 (输入 'quit' 退出)")
+    logger.info("启动智能对话系统")
     agent = Agent()
 
     while True:
