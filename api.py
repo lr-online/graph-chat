@@ -1,4 +1,5 @@
 import sys
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,8 +16,8 @@ from core import Agent
 security = HTTPBasic()
 
 # 设置用户名和密码（建议从环境变量获取）
-USERNAME = "admin"
-PASSWORD = "admin123"
+USERNAME = os.getenv("AUTH_USERNAME")
+PASSWORD = os.getenv("AUTH_PASSWORD")
 
 def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
     """验证Basic Auth凭证"""
