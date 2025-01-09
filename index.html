@@ -440,7 +440,6 @@
 
     <script>
         console.log('脚本开始执行');
-        const clientId = Date.now().toString();
         let ws = null;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
@@ -481,7 +480,7 @@
 
         function connectWebSocket() {
             console.log('开始建立WebSocket连接');
-            ws = new WebSocket(`ws://localhost:9000/ws/${clientId}`);
+            ws = new WebSocket(`ws://localhost:9000/ws`);
             updateConnectionStatus('connecting');
 
             ws.onopen = function() {
@@ -491,53 +490,24 @@
             };
 
             ws.onmessage = function(event) {
-                console.log('收到WebSocket消息:', event.data);
                 const data = JSON.parse(event.data);
-                
-                // 更新调试信息和知识图谱
-                const debugData = data.debug_info || {};
-                
-                try {
-                    updateKnowledgeGraph(data.knowledge_graph);
-                } catch (e) {
-                    console.error('更新知识图谱失败:', e);
-                }
-                
-                // 移除打字机指示器
-                const typingIndicator = document.querySelector('.typing-wrapper')?.closest('.message');
-                if (typingIndicator) {
-                    typingIndicator.remove();
-                }
-                
-                // 添加助手消息到聊天界面（使用打字机效果）
-                if (data.response) {
-                    // 获取AI消息的话题
-                    const aiTopic = debugData.assistant_message?.topic || '未分类';
-                    
-                    // 更新最后一条用户消息的话题
-                    const lastUserMessage = chatMessages.querySelector('.message.user:last-of-type');
-                    if (lastUserMessage) {
-                        const currentTopic = lastUserMessage.getAttribute('data-topic');
-                        // 如果当前没有话题或话题是"未分类"，则更新为AI的话题
-                        if (!currentTopic || currentTopic === '未分类') {
-                            lastUserMessage.setAttribute('data-topic', aiTopic);
-                            
-                            // 检查是否需要添加话题分隔符
-                            const previousMessage = lastUserMessage.previousElementSibling;
-                            if (previousMessage && previousMessage.classList.contains('message')) {
-                                const previousTopic = previousMessage.getAttribute('data-topic');
-                                if (previousTopic !== aiTopic) {
-                                    const divider = document.createElement('div');
-                                    divider.className = 'topic-divider';
-                                    divider.innerHTML = `<span class="topic-label">话题: ${aiTopic}</span>`;
-                                    lastUserMessage.parentNode.insertBefore(divider, lastUserMessage);
-                                }
-                            }
-                        }
-                    }
-                    
-                    // 添加AI回复消息
-                    addMessage('assistant', data.response, true, aiTopic);
+               
+                // 根据消息类型处理不同的响应
+                switch(data.type) {
+                    case "message_chunk":
+                        // 处理消息块
+                        handleMessageChunk(data.data);
+                        break;
+                        
+                    case "message_end":
+                        // 处理消息结束
+                        handleMessageEnd(data.data);
+                        break;
+                        
+                    case "graph_update":
+                        // 处理知识图谱更新
+                        updateKnowledgeGraph(data.data);
+                        break;
                 }
             };
 
@@ -1078,6 +1048,58 @@
                 console.error('错误详情:', e.stack);
             }
             console.groupEnd();
+        }
+
+        let currentAssistantMessage = null;
+        
+        function handleMessageChunk(chunk) {
+            if (!currentAssistantMessage) {
+                // 移除打字机指示器
+                const typingIndicator = document.querySelector('.typing-wrapper')?.closest('.message');
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+                
+                // 创建新的助手消息元素
+                currentAssistantMessage = document.createElement('div');
+                currentAssistantMessage.className = 'message assistant';
+                currentAssistantMessage.innerHTML = `
+                    <span class="message-timestamp">${formatTimestamp()}</span>
+                    <div class="message-content"></div>
+                `;
+                chatMessages.appendChild(currentAssistantMessage);
+            }
+            
+            // 追加新的内容
+            const contentDiv = currentAssistantMessage.querySelector('.message-content');
+            contentDiv.textContent += chunk;
+            scrollToBottom();
+        }
+        
+        function handleMessageEnd(data) {
+            if (currentAssistantMessage) {
+                // 使用 marked 处理最终的 Markdown 内容
+                const contentDiv = currentAssistantMessage.querySelector('.message-content');
+                const finalContent = contentDiv.textContent;
+                contentDiv.innerHTML = marked.parse(finalContent);
+                
+                // 高亮代码块
+                contentDiv.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightBlock(block);
+                });
+                
+                // 重置当前消息
+                currentAssistantMessage = null;
+            }
+            
+            // 处理调试信息
+            if (data.debug_info) {
+                const lastUserMessage = chatMessages.querySelector('.message.user:last-of-type');
+                if (lastUserMessage) {
+                    const aiTopic = data.debug_info.assistant_message?.topic || '未分类';
+                    lastUserMessage.setAttribute('data-topic', aiTopic);
+                }
+            }
         }
 
         // 使用window.onload确保所有资源都加载完成
