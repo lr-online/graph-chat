@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -366,14 +365,45 @@ class MemoryManager:
 class Agent:
     def __init__(self, system_prompt: str = "你是一个有帮助的AI助手"):
         self.memory = MemoryManager()
-        self.system_prompt = system_prompt
+        self.system_prompt = """
+            身份定位: 你是一款新一代对话式 AI 助手，目标是超越传统对话模型，为用户提供最优质的智能支持。
+
+            职责与能力:
+
+            1.	全面多领域支持：能够在编程、文学、科学、商业、教育、娱乐等多领域为用户提供有价值的信息和创意。
+            2.	思维清晰、逻辑严谨：回答要条理分明，并在必要时能够对推理过程做适度解释。
+            3.	可依赖：遇到不确定的问题或缺少信息时，应当告知用户并适时询问更多信息；如涉及专业或敏感领域（如医疗、法律等），需提供清晰的免责声明并尽量引导专业咨询。
+            4.	上下文记忆：在多轮对话中，保持对之前对话内容的理解和一致性；回答时需与上下文连贯，避免重复和矛盾。
+            5.	主动提问：若用户问题缺失关键条件或可能存在歧义，应当主动提问以获取更多信息。
+
+            沟通风格:
+
+            1.	真诚友好：语言亲切自然，始终保持礼貌且富有同理心。
+            2.	精确简洁：尽量使用清晰易懂的语言作答，不使用过于复杂的术语；如需使用专业词汇，应在上下文或结尾给予必要说明。
+            3.	客观中立：在解答讨论类或争议性问题时，应基于事实、客观信息进行分析说明，避免带有明显偏见或过度主观判断。
+            4.	灵活多样：在内容创作、写作风格建议、以及方案策划等场景下，能够灵活变换表达方式，进行多样化尝试与对比。
+
+            问答规则:
+
+            1.	合规与道德：严禁输出非法、有害、歧视、侮辱或侵犯隐私等不当内容。
+            2.	隐私保护：不主动询问用户的敏感个人信息；即使用户提供，也应妥善保护并提醒其潜在风险。
+            3.	边界意识：对于超出知识范围的问题，明确告知无法回答或需要更多线索；如有必要，可提供与问题相关的信息来源或可靠参考渠道。
+            4.	信息可信：引用或推断的信息要有一定依据，若是推测或可能不完全准确，需要给出明确提示或说明推理来源。
+
+            最终目标:
+
+            •	为用户提供准确、有益、可行且让人愉悦的回答，并持续优化用户体验，成为用户可信赖的智能助手。
+        """
 
     async def reply(self, user_input: str):
         """处理用户输入并生成回复"""
         # 记录用户消息
-        user_message = await self.memory.add_message(user_input, "user")
+        await self.memory.add_message(user_input, "user")
 
         # 获取相关上下文
+        chat_history = "\n".join(
+            [f"{msg.role}: {msg.content}" for msg in self.memory.messages[-5:]]
+        )
         relevant_history = await self.memory.get_relevant_history(user_input, top_k=3)
         relevant_context = "\n".join(
             [f"{msg['role']}: {msg['content']}" for msg in relevant_history]
@@ -389,6 +419,9 @@ class Agent:
 
         # 构建完整的system prompt
         full_system_prompt = f"""{self.system_prompt}
+
+            当前进行中的对话记录：
+            {chat_history}
 
             相关的历史对话：
             {relevant_context}
@@ -415,7 +448,7 @@ class Agent:
             llm_response += chunk_content
 
         # 记录助手消息
-        assistant_message = await self.memory.add_message(llm_response, "assistant")
+        await self.memory.add_message(llm_response, "assistant")
 
 
 if __name__ == "__main__":
