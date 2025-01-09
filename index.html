@@ -440,10 +440,9 @@
 
     <script>
         console.log('脚本开始执行');
-        let ws = null;
+        let ws;
         let reconnectAttempts = 0;
-        const maxReconnectAttempts = 5;
-        const reconnectDelay = 3000;
+        const MAX_RECONNECT_ATTEMPTS = 5;
         
         // 确保DOM元素存在
         let chatMessages, messageInput, sendButton, connectionStatus, connectionIndicator;
@@ -479,54 +478,55 @@
         }
 
         function connectWebSocket() {
-            console.log('开始建立WebSocket连接');
-            ws = new WebSocket(`ws://localhost:9000/ws`);
-            updateConnectionStatus('connecting');
+            ws = new WebSocket('ws://localhost:9000/ws');
+            
+            // WebSocket 事件处理程序应该在这里定义
+            ws.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                switch (data.type) {
+                    case "message_chunk":
+                        await handleMessageChunk(data.data);
+                        break;
+                    case "message_end":
+                        await handleMessageEnd(data.data);
+                        break;
+                    case "error":
+                        showError(data.data);
+                        break;
+                    case "graph_update":
+                        updateKnowledgeGraph(data.data);  // 注意这里改回原来的函数名
+                        break;
+                }
+            };
 
-            ws.onopen = function() {
-                console.log('WebSocket连接已建立');
+            ws.onclose = () => {
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    setTimeout(() => {
+                        reconnectAttempts++;
+                        connectWebSocket();
+                    }, 3000);
+                }
+            };
+
+            ws.onopen = () => {
                 updateConnectionStatus('connected');
                 reconnectAttempts = 0;
             };
 
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-               
-                // 根据消息类型处理不同的响应
-                switch(data.type) {
-                    case "message_chunk":
-                        // 处理消息块
-                        handleMessageChunk(data.data);
-                        break;
-                        
-                    case "message_end":
-                        // 处理消息结束
-                        handleMessageEnd(data.data);
-                        break;
-                        
-                    case "graph_update":
-                        // 处理知识图谱更新
-                        updateKnowledgeGraph(data.data);
-                        break;
-                }
-            };
-
-            ws.onclose = function() {
-                console.log('WebSocket连接已关闭');
-                updateConnectionStatus('disconnected');
-                
-                if (reconnectAttempts < maxReconnectAttempts) {
-                    setTimeout(() => {
-                        reconnectAttempts++;
-                        console.log(`尝试重新连接 (${reconnectAttempts}/${maxReconnectAttempts})...`);
-                        connectWebSocket();
-                    }, reconnectDelay);
-                }
-            };
-
-            ws.onerror = function(error) {
+            ws.onerror = (error) => {
                 console.error('WebSocket错误:', error);
+                updateConnectionStatus('disconnected');
             };
+
+            updateConnectionStatus('connecting');
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            chatMessages.appendChild(errorDiv);
+            setTimeout(() => errorDiv.remove(), 5000);
         }
 
         function updateConnectionStatus(status) {
@@ -815,8 +815,7 @@
                     smooth: { 
                         enabled: true, 
                         type: 'continuous',
-                        roundness: 0.3,
-                        dynamic: true
+                        roundness: 0.3
                     }
                 },
                 physics: {

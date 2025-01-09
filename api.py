@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from loguru import logger
 
 from core import Agent
@@ -41,30 +41,51 @@ app.add_middleware(
 @app.get("/", response_class=HTMLResponse)
 async def get_home():
     """返回首页HTML"""
+    logger.debug("访问首页")
     return FileResponse("index.html")
-
-
-async def on_message(message: str, agent: Agent, websocket: WebSocket):
-    """处理消息"""
-    async for chunk in agent.reply(message):
-        await websocket.send_json({"type": "message_chunk", "data": chunk})
-    await websocket.send_json({"type": "message_end", "data": {"debug_info": None}})
-    graph_data = agent.memory.knowledge_graph.get_graph_data()
-    await websocket.send_json({"type": "graph_update", "data": graph_data})
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket连接处理"""
-    agent = Agent()
+    agent = None
     try:
         await websocket.accept()
-        while True:
-            message = await websocket.receive_text()
-            await on_message(message, agent, websocket)
+        agent = Agent()
+        logger.info("新的WebSocket连接建立")
 
-    except Exception as e:
-        logger.error(f"WebSocket错误 error: {e}")
+        while True:
+            try:
+                message = await websocket.receive_text()
+                logger.debug(f"收到消息: {message[:50]}...")  # 记录收到的消息
+                async for chunk in agent.reply(message):
+                    if not chunk:  # 跳过空消息
+                        continue
+                    await websocket.send_json({"type": "message_chunk", "data": chunk})
+
+                # 消息处理完成后，发送消息结束标记
+                await websocket.send_json(
+                    {"type": "message_end", "data": {"debug_info": None}}
+                )
+
+                # 发送知识图谱更新
+                graph_data = agent.memory.knowledge_graph.get_graph_data()
+                await websocket.send_json({"type": "graph_update", "data": graph_data})
+                logger.debug("知识图谱更新已发送")
+
+            except WebSocketDisconnect:
+                logger.info("WebSocket连接断开")
+                break
+            except Exception as e:
+                logger.error(f"消息处理错误: {e}")
+                await websocket.send_json({"type": "error", "data": "消息处理失败"})
     finally:
-        # 清理资源
-        logger.info(f"WebSocket连接关闭")
+        if agent:
+            await agent.cleanup()
+            logger.info("资源清理完成")
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    logger.error(f"全局错误: {exc}")
+    return JSONResponse(status_code=500, content={"message": "服务器内部错误"})

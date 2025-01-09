@@ -8,6 +8,19 @@ from openai import AsyncOpenAI
 
 
 class Message:
+    """表示一条对话消息的类
+
+    属性:
+        id: 消息唯一标识
+        timestamp: 消息创建时间
+        content: 消息内容
+        role: 消息角色（user/assistant）
+        topic: 消息主题（可选）
+        importance: 消息重要性（1-5）
+        embedding: 消息的向量表示
+        related_nodes: 与消息相关的知识图谱节点
+    """
+
     def __init__(self, content: str, role: str):
         self.id = f"msg_{int(datetime.now().timestamp())}"
         self.timestamp = datetime.now().isoformat()
@@ -17,6 +30,7 @@ class Message:
         self.importance: Optional[int] = None
         self.embedding: Optional[List[float]] = None
         self.related_nodes: List[str] = []
+        logger.debug(f"创建新消息 - ID: {self.id}, 角色: {role}")
 
     def to_dict(self) -> Dict:
         return {
@@ -31,9 +45,14 @@ class Message:
 
 
 class KnowledgeGraph:
-    def __init__(self, save_path: str = "knowledge_graph.json"):
+    """知识图谱管理类
+
+    负责管理概念节点和关系，支持增删改查操作
+    """
+
+    def __init__(self):
         self.graph = nx.DiGraph()
-        self.save_path = save_path
+        logger.info("初始化知识图谱")
 
     def update_concept(self, concept_name: str, new_attrs: Dict[str, str]) -> str:
         """更新概念的属性"""
@@ -103,7 +122,16 @@ class KnowledgeGraph:
     def add_knowledge(
         self, concepts: List[Dict[str, str]], context: str = ""
     ) -> List[str]:
-        """添加知识到图谱中，返回新添加的节点列表"""
+        """添加知识到图谱中
+
+        Args:
+            concepts: 概念列表，每个概念包含name、type和description
+            context: 概念的上下文信息
+
+        Returns:
+            新添加节点的日志列表
+        """
+        logger.info(f"添加新知识 - 概念数量: {len(concepts)}")
         new_nodes = []
         for concept in concepts:
             concept_name = concept["concept"]
@@ -115,9 +143,9 @@ class KnowledgeGraph:
                     description=concept["description"],
                     context=context,
                 )
-                new_nodes.append(
-                    f"新概念: {concept_name} ({concept['type']}) - {concept['description']}"
-                )
+                log = f"新概念: {concept_name} ({concept['type']}) - {concept['description']}"
+                new_nodes.append(log)
+                logger.debug(log)
             else:
                 # 更新现有概念
                 update_log = self.update_concept(
@@ -125,6 +153,7 @@ class KnowledgeGraph:
                     {"type": concept["type"], "description": concept["description"]},
                 )
                 new_nodes.append(update_log)
+                logger.debug(update_log)
 
         return new_nodes
 
@@ -190,16 +219,32 @@ class KnowledgeGraph:
 
 
 class MemoryManager:
+    """对话记忆管理器
+
+    负责管理对话历史、消息分析和知识提取
+    """
+
     def __init__(self):
         self.messages: List[Message] = []
         self.oai_client = AsyncOpenAI()
-        self.knowledge_graph = KnowledgeGraph("knowledge_graph.json")
+        self.knowledge_graph = KnowledgeGraph()
         self.last_knowledge_extraction: Optional[datetime] = None
+        logger.info("初始化记忆管理器")
 
     async def add_message(self, content: str, role: str) -> Message:
+        """添加新消息并进行分析
+
+        Args:
+            content: 消息内容
+            role: 消息角色（user/assistant）
+
+        Returns:
+            创建的消息对象
+        """
         message = Message(content, role)
         await self._analyze_message(message)
         self.messages.append(message)
+        logger.debug(f"添加新消息 - 角色: {role}, 主题: {message.topic}")
 
         await self.extract_knowledge()
         return message
@@ -283,13 +328,15 @@ class MemoryManager:
             return []
 
     async def extract_knowledge(self) -> None:
-        """从对话历史中提取知识并构建知识图谱"""
+        """从对话历史中提取知识并更新知识图谱"""
         try:
             recent_messages = self.messages[-5:]
             conversation_history = self._format_messages_for_prompt(recent_messages)
+            logger.info("开始知识提取")
 
             # 获取当前图谱中的概念
             current_concepts = list(self.knowledge_graph.graph.nodes)
+            logger.debug(f"当前图谱概念数: {len(current_concepts)}")
 
             extraction_prompt = f"""分析以下对话，提取关键概念和它们之间的关系。
 
@@ -359,10 +406,15 @@ class MemoryManager:
             )
 
         except Exception as e:
-            logger.error(f"知识提取错误: {e}")
+            logger.error(f"知识提取错误: {str(e)}")
 
 
 class Agent:
+    """AI助手代理类
+
+    负责处理用户输入并生成回复
+    """
+
     def __init__(self, system_prompt: str = "你是一个有帮助的AI助手"):
         self.memory = MemoryManager()
         self.system_prompt = """
@@ -394,61 +446,82 @@ class Agent:
 
             •	为用户提供准确、有益、可行且让人愉悦的回答，并持续优化用户体验，成为用户可信赖的智能助手。
         """
+        logger.info("初始化AI助手")
+
+    async def cleanup(self):
+        """清理资源"""
+        try:
+            await self.memory.oai_client.close()
+            logger.info("AI助手资源清理完成")
+        except Exception as e:
+            logger.error(f"清理资源失败: {str(e)}")
 
     async def reply(self, user_input: str):
-        """处理用户输入并生成回复"""
-        # 记录用户消息
-        await self.memory.add_message(user_input, "user")
+        """处理用户输入并生成回复
 
-        # 获取相关上下文
-        chat_history = "\n".join(
-            [f"{msg.role}: {msg.content}" for msg in self.memory.messages[-5:]]
-        )
-        relevant_history = await self.memory.get_relevant_history(user_input, top_k=3)
-        relevant_context = "\n".join(
-            [f"{msg['role']}: {msg['content']}" for msg in relevant_history]
-        )
+        Args:
+            user_input: 用户输入的消息
 
-        # 获取相关知识
-        related_concepts = set()
-        for node in self.memory.knowledge_graph.graph.nodes():
-            if node.lower() in user_input.lower():
-                related_concepts.update(
-                    self.memory.knowledge_graph.get_related_concepts(node)
-                )
-
-        # 构建完整的system prompt
-        full_system_prompt = f"""{self.system_prompt}
-
-            当前进行中的对话记录：
-            {chat_history}
-
-            相关的历史对话：
-            {relevant_context}
-
-            相关的知识概念：
-            {', '.join(related_concepts) if related_concepts else '无'}
-
-            请基于这些上下文来回答用户的问题。如果历史信息或相关概念对回答有帮助，可以参考它们，但不要直接重复这些内容。
+        Yields:
+            生成的回复片段
         """
+        try:
+            logger.debug(f"处理用户输入: {user_input[:50]}...")
+            await self.memory.add_message(user_input, "user")
 
-        # 生成回复
-        messages = [
-            {"role": "system", "content": full_system_prompt},
-            {"role": "user", "content": user_input},
-        ]
+            # 获取相关上下文
+            chat_history = "\n".join(
+                [f"{msg.role}: {msg.content}" for msg in self.memory.messages[-5:]]
+            )
+            relevant_history = await self.memory.get_relevant_history(
+                user_input, top_k=3
+            )
 
-        response = await self.memory.oai_client.chat.completions.create(
-            model="gpt-4o-mini", messages=messages, stream=True
-        )
-        llm_response = ""
-        async for chunk in response:
-            chunk_content = chunk.choices[0].delta.content or ""
-            yield chunk_content
-            llm_response += chunk_content
+            # 获取相关知识
+            related_concepts = set()
+            for node in self.memory.knowledge_graph.graph.nodes():
+                if node.lower() in user_input.lower():
+                    related_concepts.update(
+                        self.memory.knowledge_graph.get_related_concepts(node)
+                    )
 
-        # 记录助手消息
-        await self.memory.add_message(llm_response, "assistant")
+            # 构建完整的system prompt
+            full_system_prompt = f"""{self.system_prompt}
+
+                当前进行中的对话记录：
+                {chat_history}
+
+                相关的历史对话：
+                {relevant_history}
+
+                相关的知识概念：
+                {', '.join(related_concepts) if related_concepts else '无'}
+
+                请基于这些上下文来回答用户的问题。如果历史信息或相关概念对回答有帮助，可以参考它们，但不要直接重复这些内容。
+            """
+
+            # 生成回复
+            messages = [
+                {"role": "system", "content": full_system_prompt},
+                {"role": "user", "content": user_input},
+            ]
+
+            response = await self.memory.oai_client.chat.completions.create(
+                model="gpt-4o-mini", messages=messages, stream=True
+            )
+            logger.debug("开始生成回复")
+            llm_response = ""
+            async for chunk in response:
+                chunk_content = chunk.choices[0].delta.content or ""
+                yield chunk_content
+                llm_response += chunk_content
+
+            await self.memory.add_message(llm_response, "assistant")
+            logger.debug("回复生成完成")
+
+        except Exception as e:
+            logger.error(f"生成回复时出错: {str(e)}")
+            yield "抱歉，处理您的消息时出现错误。"
 
 
 if __name__ == "__main__":
