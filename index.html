@@ -1076,25 +1076,59 @@
                     <div class="message-content"></div>
                 `;
                 chatMessages.appendChild(currentAssistantMessage);
+                // 存储原始文本内容
+                currentAssistantMessage.rawContent = '';
             }
             
-            // 追加新的内容
+            // 获取消息内容的DOM元素
             const contentDiv = currentAssistantMessage.querySelector('.message-content');
-            contentDiv.textContent += chunk;
+            if (!contentDiv) {
+                console.error('找不到消息内容元素');
+                return;
+            }
+            
+            // 追加新的内容到原始文本
+            currentAssistantMessage.rawContent += chunk;
+            
+            // 尝试渲染Markdown
+            try {
+                contentDiv.innerHTML = marked.parse(currentAssistantMessage.rawContent);
+                
+                // 高亮新的代码块
+                contentDiv.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightBlock(block);
+                });
+                
+                // 尝试渲染新的Mermaid图表
+                renderMermaidDiagrams(contentDiv);
+            } catch (error) {
+                // 如果Markdown解析失败，至少显示原始文本
+                console.warn('Markdown解析失败，显示原始文本:', error);
+                contentDiv.textContent = currentAssistantMessage.rawContent;
+            }
+            
             scrollToBottom();
         }
         
         function handleMessageEnd(data) {
             if (currentAssistantMessage) {
-                // 使用 marked 处理最终的 Markdown 内容
+                // 获取消息内容的DOM元素
                 const contentDiv = currentAssistantMessage.querySelector('.message-content');
-                const finalContent = contentDiv.textContent;
-                contentDiv.innerHTML = marked.parse(finalContent);
+                if (!contentDiv) {
+                    console.error('找不到消息内容元素');
+                    return;
+                }
                 
-                // 高亮代码块
-                contentDiv.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightBlock(block);
-                });
+                // 最后一次完整的渲染
+                try {
+                    contentDiv.innerHTML = marked.parse(currentAssistantMessage.rawContent);
+                    contentDiv.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightBlock(block);
+                    });
+                    renderMermaidDiagrams(contentDiv);
+                } catch (error) {
+                    console.error('最终Markdown渲染失败:', error);
+                }
                 
                 // 重置当前消息
                 currentAssistantMessage = null;
