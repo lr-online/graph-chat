@@ -57,7 +57,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 message = await websocket.receive_text()
-                logger.debug(f"收到消息: {message[:50]}...")  # 记录收到的消息
+                logger.info(f"收到消息: {message[:50]}...")  # 记录收到的消息
                 async for chunk in agent.reply(message):
                     if not chunk:  # 跳过空消息
                         continue

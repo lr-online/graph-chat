@@ -372,7 +372,7 @@ class MemoryManager:
 }}"""
 
             response = await self.oai_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 messages=[{"role": "user", "content": extraction_prompt}],
                 response_format={"type": "json_object"},
             )
@@ -507,7 +507,7 @@ class Agent:
             ]
 
             response = await self.memory.oai_client.chat.completions.create(
-                model="gpt-4o-mini", messages=messages, stream=True
+                model="gpt-4o", messages=messages, stream=True
             )
             logger.debug("开始生成回复")
             llm_response = ""
