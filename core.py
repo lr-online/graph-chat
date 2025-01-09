@@ -330,7 +330,7 @@ class MemoryManager:
     async def extract_knowledge(self) -> None:
         """从对话历史中提取知识并更新知识图谱"""
         try:
-            recent_messages = self.messages[-5:]
+            recent_messages = self.messages[-6:]
             conversation_history = self._format_messages_for_prompt(recent_messages)
             logger.info("开始知识提取")
 
@@ -350,6 +350,7 @@ class MemoryManager:
 1. 如果发现的概念与已有概念相关，应该更新或完善已有概念的描述
 2. 如果发现新的概念，应该与已有概念建立关联
 3. 如果发现现有概念之间的新关系，应该添加这些关系
+4. 分析要尽可能的详细，不要遗漏任何信息
 
 请返回：
 1. concepts: 关键概念列表，每个概念包含：

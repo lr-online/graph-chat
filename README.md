@@ -45,5 +45,24 @@ Graph-Chat是一个基于知识图谱的智能对话系统，能够在对话过�
 ## 快速开始
 
 1. 克隆项目
-2. 安装依赖
-3. 运行项目
+2. 创建虚拟环境
+3. 安装依赖
+4. 配置环境变量
+
+    ```bash
+    # OpenAI配置
+    export OPENAI_API_KEY=your_api_key
+    
+    # 认证配置（可选，默认为admin/admin123）
+    export AUTH_USERNAME=your_username
+    export AUTH_PASSWORD=your_password
+    ```
+
+5. 运行项目
+
+    ```bash
+    uvicorn api:app --reload --port 9000
+    ```
+
+6. 访问应用
+    打开浏览器访问 `http://localhost:9000`，输入配置的用户名和密码

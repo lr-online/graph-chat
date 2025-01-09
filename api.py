@@ -2,12 +2,33 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from loguru import logger
+import secrets
 
 from core import Agent
+
+# 初始化Basic Auth
+security = HTTPBasic()
+
+# 设置用户名和密码（建议从环境变量获取）
+USERNAME = "admin"
+PASSWORD = "admin123"
+
+def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    """验证Basic Auth凭证"""
+    is_username_ok = secrets.compare_digest(credentials.username, USERNAME)
+    is_password_ok = secrets.compare_digest(credentials.password, PASSWORD)
+    if not (is_username_ok and is_password_ok):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 # 配置logger
 logger.remove()  # 移除默认的处理器
@@ -39,7 +60,7 @@ app.add_middleware(
 
 
 @app.get("/", response_class=HTMLResponse)
-async def get_home():
+async def get_home(username: str = Depends(verify_auth)):
     """返回首页HTML"""
     logger.debug("访问首页")
     return FileResponse("index.html")
