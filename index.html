@@ -484,7 +484,7 @@
             const host = window.location.hostname;
             const port = '9000'; // 或者使用 window.location.port 如果端口与页面端口相同
             
-            const wsUrl = `${protocol}//${host}:${port}/api/ws`; // 添加额外的路径前缀
+            const wsUrl = `${protocol}//${host}:${port}/ws`; // 添加额外的路径前缀
             console.log('WebSocket连接URL:', wsUrl);
             
             ws = new WebSocket(wsUrl);
