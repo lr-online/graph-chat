@@ -79,6 +79,7 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 # 挂载静态文件目录
+app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
@@ -86,7 +87,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 async def get_home(username: str = Depends(verify_auth)):
     """返回首页HTML"""
     logger.debug("访问首页")
-    return FileResponse("index.html")
+    return FileResponse("static/index.html")
 
 
 @app.websocket("/ws")

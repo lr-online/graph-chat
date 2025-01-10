@@ -9,14 +9,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
-
-
 # 复制项目文件
 COPY requirements.txt .
 COPY api.py .
 COPY core.py .
-COPY index.html .
+COPY static/ static/
 COPY README.md .
+
+# 创建并授权目录
+RUN mkdir -p uploads && \
+    chmod 777 uploads && \
+    chmod -R 755 static
 
 # 安装Python依赖
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple

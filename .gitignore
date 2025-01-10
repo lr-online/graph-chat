@@ -16,7 +16,6 @@ lib64/
 parts/
 sdist/
 var/
-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -24,7 +23,6 @@ wheels/
 # Virtual Environment
 venv/
 ENV/
-.env
 
 # IDE
 .idea/
@@ -34,6 +32,10 @@ ENV/
 .DS_Store
 
 # Project specific
-knowledge_graph.json
-*.log 
 uploads/
+*.log
+.env
+
+# Static files
+static/css/*.map
+static/js/*.map
