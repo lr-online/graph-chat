@@ -1,10 +1,21 @@
+import asyncio
+import base64
 import json
+import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Tuple
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import networkx as nx
 from loguru import logger
 from openai import AsyncOpenAI
+
+
+class MessageType(Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    FILE = "file"
 
 
 class Message:
@@ -21,23 +32,35 @@ class Message:
         related_nodes: 与消息相关的知识图谱节点
     """
 
-    def __init__(self, content: str, role: str):
-        self.id = f"msg_{int(datetime.now().timestamp())}"
-        self.timestamp = datetime.now().isoformat()
+    def __init__(
+        self,
+        content: str,
+        role: str,
+        msg_type: MessageType = MessageType.TEXT,
+        file_info: Optional[Dict[str, Any]] = None,
+    ):
+        self.id = str(uuid.uuid4())
         self.content = content
         self.role = role
-        self.topic: Optional[str] = None
-        self.importance: Optional[int] = None
-        self.embedding: Optional[List[float]] = None
-        self.related_nodes: List[str] = []
-        logger.debug(f"创建新消息 - ID: {self.id}, 角色: {role}")
+        self.msg_type = msg_type
+        self.file_info = file_info or {}
+        self.timestamp = datetime.now()
+        self.topic = None
+        self.importance = None
+        self.embedding = None
+        self.related_nodes = []
+        logger.debug(
+            f"创建新消息 - ID: {self.id}, 角色: {role}, 类型: {msg_type.value}"
+        )
 
     def to_dict(self) -> Dict:
         return {
             "id": self.id,
-            "timestamp": self.timestamp,
             "content": self.content,
             "role": self.role,
+            "type": self.msg_type.value,
+            "file_info": self.file_info,
+            "timestamp": self.timestamp.isoformat(),
             "topic": self.topic,
             "importance": self.importance,
             "related_nodes": self.related_nodes,
@@ -231,17 +254,21 @@ class MemoryManager:
         self.last_knowledge_extraction: Optional[datetime] = None
         logger.info("初始化记忆管理器")
 
-    async def add_message(self, content: str, role: str) -> Message:
+    async def add_message(
+        self, content: str, role: str, msg_type: str = "text", file_info: dict = None
+    ) -> Message:
         """添加新消息并进行分析
 
         Args:
             content: 消息内容
             role: 消息角色（user/assistant）
+            msg_type: 消息类型（text/image/file）
+            file_info: 文件相关信息
 
         Returns:
             创建的消息对象
         """
-        message = Message(content, role)
+        message = Message(content, role, MessageType(msg_type), file_info)
         await self._analyze_message(message)
         self.messages.append(message)
         logger.debug(f"添加新消息 - 角色: {role}, 主题: {message.topic}")
@@ -457,18 +484,24 @@ class Agent:
         except Exception as e:
             logger.error(f"清理资源失败: {str(e)}")
 
-    async def reply(self, user_input: str):
+    async def reply(
+        self, user_input: str, message_type: str = "text", file_info: dict = None
+    ):
         """处理用户输入并生成回复
 
         Args:
             user_input: 用户输入的消息
+            message_type: 消息类型（text/image/file）
+            file_info: 文件相关信息
 
         Yields:
             生成的回复片段
         """
         try:
             logger.debug(f"处理用户输入: {user_input[:50]}...")
-            await self.memory.add_message(user_input, "user")
+            await self.memory.add_message(
+                user_input, "user", message_type, file_info or {}
+            )
 
             # 获取相关上下文
             chat_history = "\n".join(
@@ -486,6 +519,13 @@ class Agent:
                         self.memory.knowledge_graph.get_related_concepts(node)
                     )
 
+            # 根据消息类型构建系统提示
+            type_prompt = ""
+            if message_type == "image":
+                type_prompt = f"\n用户发送了一张图片，URL: {file_info.get('url', '')}"
+            elif message_type == "file":
+                type_prompt = f"\n用户发送了一个文件，文件名: {file_info.get('original_name', '')}"
+
             # 构建完整的system prompt
             full_system_prompt = f"""{self.system_prompt}
 
@@ -497,19 +537,53 @@ class Agent:
 
                 相关的知识概念：
                 {', '.join(related_concepts) if related_concepts else '无'}
+                {type_prompt}
 
                 请基于这些上下文来回答用户的问题。如果历史信息或相关概念对回答有帮助，可以参考它们，但不要直接重复这些内容。
             """
 
-            # 生成回复
-            messages = [
-                {"role": "system", "content": full_system_prompt},
-                {"role": "user", "content": user_input},
-            ]
+            # 构建消息内容
+            messages = [{"role": "system", "content": full_system_prompt}]
 
+            if message_type == "image":
+                # 编码图片
+                base64_image = await encode_image_file(file_info.get("filename", ""))
+
+                if base64_image:
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "请分析这张图片的内容，告诉我：\n1. 图片中包含了什么内容？\n2. 你能看出什么细节和特征？\n3. 这张图片想要传达什么信息或情感？",
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": base64_image},
+                                },
+                            ],
+                        }
+                    )
+                else:
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": "抱歉，图片处理失败，无法进行分析。",
+                        }
+                    )
+            else:
+                # 对于文本消息，使用原来的消息构建逻辑
+                messages = [
+                    {"role": "system", "content": full_system_prompt},
+                    {"role": "user", "content": user_input},
+                ]
+
+            # 生成回复
             response = await self.memory.oai_client.chat.completions.create(
-                model="gpt-4o", messages=messages, stream=True
+                model="gpt-4o", messages=messages, max_tokens=1000, stream=True
             )
+
             logger.debug("开始生成回复")
             llm_response = ""
             async for chunk in response:
@@ -517,12 +591,30 @@ class Agent:
                 yield chunk_content
                 llm_response += chunk_content
 
-            await self.memory.add_message(llm_response, "assistant")
+            await self.memory.add_message(llm_response, "assistant", "text", {})
             logger.debug("回复生成完成")
 
         except Exception as e:
             logger.error(f"生成回复时出错: {str(e)}")
             yield "抱歉，处理您的消息时出现错误。"
+
+
+async def encode_image_file(file_path: str) -> str:
+    """从URL获取图片并转换为base64编码"""
+    try:
+        file_path = Path("uploads") / file_path
+        if not file_path.exists():
+            logger.error(f"图片文件不存在: {file_path}")
+            return None
+
+        with open(file_path, "rb") as image_file:
+            image_data = image_file.read()
+            return (
+                f"data:image/jpeg;base64,{base64.b64encode(image_data).decode('utf-8')}"
+            )
+    except Exception as e:
+        logger.error(f"编码图片失败: {e}")
+        return None
 
 
 if __name__ == "__main__":

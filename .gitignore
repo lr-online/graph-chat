@@ -36,3 +36,4 @@ ENV/
 # Project specific
 knowledge_graph.json
 *.log 
+uploads/

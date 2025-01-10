@@ -102,23 +102,99 @@
         }
 
         .message {
-            margin-bottom: 15px;
+            margin-bottom: 24px;
             display: flex;
             align-items: flex-start;
             opacity: 0;
             animation: fadeIn 0.3s ease-in-out forwards;
+            position: relative;
         }
 
         .message.user {
             flex-direction: row-reverse;
         }
 
+        /* 基础消息样式 */
         .message-content {
             max-width: 70%;
             padding: 10px 15px;
-            border-radius: 18px;
+            border-radius: 12px;
             margin: 0 10px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            line-height: 1.5;
+            font-size: 14px;
+            position: relative;
+        }
+
+        /* 文本消息样式 */
+        .message.user .message-content {
+            background-color: #f0f2f5;  /* 更柔和的灰色背景 */
+            color: #333;
+        }
+
+        .message.assistant .message-content {
+            background-color: #fff;  /* 白色背景 */
+            color: #333;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            padding-bottom: 36px;  /* 只给AI消息添加底部padding */
+        }
+
+        /* 图片消息样式 */
+        .message-content.image-only {
+            padding: 0;
+            background: none !important;  /* 确保图片消息没有背景 */
+            border: none !important;
+            box-shadow: none;
+            max-width: 300px;
+        }
+
+        .image-content {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .image-content img {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .image-content img:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* 文件消息样式 */
+        .file-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .file-content:hover {
+            background: rgba(0, 0, 0, 0.08);
+        }
+        
+        .file-content svg {
+            width: 16px;
+            height: 16px;
+            color: #666;
+        }
+        
+        .file-content a {
+            color: #333;
+            text-decoration: none;
+        }
+        
+        .file-content a:hover {
+            text-decoration: underline;
         }
 
         .topic-divider {
@@ -150,16 +226,10 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
-        .user .message-content {
-            background-color: #007bff;
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-
         .assistant .message-content {
-            background-color: #e9ecef;
-            color: black;
-            border-bottom-left-radius: 4px;
+            background-color: #f5f5f5;
+            color: #333;
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .input-container {
@@ -169,7 +239,7 @@
             display: flex;
             gap: 12px;
             align-items: center;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
         }
 
         #messageInput {
@@ -181,11 +251,11 @@
         }
 
         button {
-            padding: 12px 24px;
+            padding: 4px 15px;
             background-color: #007bff;
             color: white;
             border: none;
-            border-radius: 24px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: 500;
             font-size: 15px;
@@ -193,6 +263,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            height: 44px;
         }
 
         button:hover {
@@ -216,9 +287,14 @@
         .message-timestamp {
             font-size: 12px;
             color: #999;
-            margin: 0 10px;
+            margin-bottom: 4px;
+            display: block;
         }
         
+        .message.user .message-timestamp {
+            text-align: right;
+        }
+
         .message-status {
             font-size: 12px;
             color: #666;
@@ -346,26 +422,27 @@
             display: flex;
             align-items: center;
             flex-grow: 1;
-            background: #f8f9fa;
-            border: 2px solid transparent;
+            background: #fff;
+            border: 1px solid #e0e3e9;
             border-radius: 24px;
             padding: 0 16px;
             transition: all 0.3s ease;
+            height: 44px;
         }
         
         .input-wrapper:focus-within {
             background: #fff;
-            border-color: #007bff;
-            box-shadow: 0 0 0 4px rgba(0,123,255,0.1);
+            border-color: #4096ff;
+            box-shadow: 0 0 0 2px rgba(64,150,255,.2);
         }
 
         .input-wrapper input {
             border: none;
             flex-grow: 1;
-            padding: 12px 0;
+            padding: 4px 11px;
             background: transparent;
             font-size: 15px;
-            color: #495057;
+            color: rgba(0, 0, 0, 0.88);
         }
 
         .input-wrapper input:focus {
@@ -469,6 +546,207 @@
             border-left: 4px solid #dc3545;
             background: #f8d7da;
         }
+
+        .upload-buttons {
+            display: flex;
+            gap: 8px;
+            padding-left: 8px;
+            border-left: 1px solid #d9d9d9;
+            margin-left: 4px;
+        }
+        
+        .upload-button {
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            position: relative;
+        }
+        
+        .upload-button:hover {
+            background: rgba(0, 0, 0, 0.04);
+        }
+        
+        .upload-button svg {
+            width: 16px;
+            height: 16px;
+            color: rgba(0, 0, 0, 0.45);
+            transition: all 0.2s;
+        }
+
+        .upload-button:hover svg {
+            color: rgba(0, 0, 0, 0.65);
+        }
+        
+        .upload-button input[type="file"] {
+            position: absolute;
+            width: 0;
+            height: 0;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+        
+        .upload-preview {
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .message.user .image-content img {
+            max-width: 200px;
+            border-radius: 8px;
+        }
+        
+        .message.assistant .image-content img {
+            max-width: 300px;
+            border-radius: 8px;
+        }
+        
+        .file-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #fff;
+            border-radius: 4px;
+            border: 1px solid #eaeaea;
+            transition: all 0.3s ease;
+        }
+        
+        .file-content:hover {
+            background: #f8f9fa;
+            border-color: #d0d7de;
+        }
+        
+        .file-content a {
+            color: #0366d6;
+            text-decoration: none;
+        }
+        
+        .file-content a:hover {
+            text-decoration: underline;
+        }
+
+        .image-content {
+            margin: 8px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .image-content img {
+            max-width: 300px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .image-content img:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* 音频消息样式预留 */
+        .audio-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid #eaeaea;
+        }
+        
+        /* 视频消息样式预留 */
+        .video-content {
+            max-width: 400px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* Markdown 样式统一 */
+        .message-content code {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .message-content pre {
+            background: rgba(0, 0, 0, 0.02);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+        }
+        
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .message-content blockquote {
+            border-left: 4px solid rgba(0, 0, 0, 0.1);
+            margin: 8px 0;
+            padding-left: 12px;
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        /* 复制按钮独立样式 */
+        .copy-button {
+            padding: 4px;
+            height: 24px;
+            width: 24px;
+            font-size: 12px;
+            color: #666;
+            background: #fff;
+            border: 1px solid #e0e3e9;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            z-index: 1;
+        }
+        
+        .copy-button:hover {
+            background: #f5f5f5;
+            color: #333;
+            border-color: #d0d7de;
+        }
+
+        /* 复制按钮图标样式 */
+        .copy-button svg {
+            width: 14px;
+            height: 14px;
+            stroke-width: 2;
+        }
+        
+        /* 复制成功状态 */
+        .copy-button.copied {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-color: #90caf9;
+        }
+
+        /* 复制按钮容器 */
+        .copy-button-container {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            padding: 6px 8px;
+        }
     </style>
 </head>
 <body>
@@ -487,6 +765,25 @@
                 <div class="input-wrapper">
                     <span id="connectionIndicator" class="connection-indicator"></span>
                     <input type="text" id="messageInput" placeholder="输入消息...">
+                    <div class="upload-buttons">
+                        <label class="upload-button" title="上传图片">
+                            <input type="file" accept="image/*" onchange="handleImageUpload(event)" hidden>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                        </label>
+                        <label class="upload-button" title="上传文件">
+                            <input type="file" onchange="handleFileUpload(event)" hidden>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="12" y1="18" x2="12" y2="12"/>
+                                <line x1="9" y1="15" x2="15" y2="15"/>
+                            </svg>
+                        </label>
+                    </div>
                 </div>
                 <button id="sendButton" onclick="sendMessage()">
                     <span>发送</span>
@@ -502,6 +799,14 @@
             <div class="graph-header">知识图谱</div>
             <div id="knowledge-graph"></div>
         </div>
+    </div>
+
+    <div id="uploadPreview" class="upload-preview" style="display: none;">
+        <div class="preview-content">
+            <img id="imagePreview" style="display: none;">
+            <div id="filePreview" style="display: none;"></div>
+        </div>
+        <button onclick="cancelUpload()" class="cancel-upload">×</button>
     </div>
 
     <script>
@@ -745,56 +1050,81 @@
             await renderMermaidDiagrams(element);
         }
 
-        function addMessage(role, content, useTypeWriter = false, topic = '未分类') {
-            if (!content) {
-                console.warn('addMessage: content is undefined or empty');
-                return;
-            }
-            const lastMessage = chatMessages.lastElementChild;
-            const lastTopic = lastMessage?.getAttribute('data-topic');
-            const currentTopic = topic;
-            
-            // 如果提供了新话题且不是null，则添加话题分隔符
-            if (topic && role === 'user') {
-                // 如果话题改变，添加分割线
-                if (lastTopic && currentTopic && lastTopic !== currentTopic) {
-                    const divider = document.createElement('div');
-                    divider.className = 'topic-divider';
-                    divider.innerHTML = `<span class="topic-label">话题: ${currentTopic}</span>`;
-                    chatMessages.appendChild(divider);
-                }
-            }
-            
+        function addMessage(role, content, useTypeWriter = false, topic = '未分类', fileInfo = null) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
             messageDiv.setAttribute('data-topic', topic);
-            
-            const timestamp = formatTimestamp();
-            
-            // 处理 Markdown
-            const htmlContent = useTypeWriter ? '' : marked.parse(content);
-            
-            messageDiv.innerHTML = `
-                <span class="message-timestamp">${timestamp}</span>
-                <div class="message-content">${useTypeWriter ? '' : htmlContent}</div>
-            `;
-            
-            chatMessages.appendChild(messageDiv);
-            
-            // 如果不使用打字机效果，立即渲染
-            if (!useTypeWriter) {
-                messageDiv.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightBlock(block);
-                });
-                renderMermaidDiagrams(messageDiv);
-            }
-            
-            scrollToBottom();
 
-            if (useTypeWriter) {
-                const contentDiv = messageDiv.querySelector('.message-content');
-                typeWriter(contentDiv, content);
+            const timestamp = formatTimestamp();
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'message-timestamp';
+            timestampSpan.textContent = timestamp;
+            messageDiv.appendChild(timestampSpan);
+
+            const messageContentDiv = document.createElement('div');
+            messageContentDiv.className = 'message-content';
+
+            // 先创建内容容器
+            const contentContainer = document.createElement('div');
+            contentContainer.className = 'content-container';
+
+            if (content.startsWith('[图片]')) {
+                messageContentDiv.classList.add('image-only');
+                contentContainer.innerHTML = `<div class="image-content"><img src="${fileInfo?.url || ''}" alt="上传的图片"></div>`;
+            } else {
+                contentContainer.innerHTML = role === 'user' ? `<div>${content}</div>` : marked.parse(content);
             }
+
+            // 先添加内容
+            messageContentDiv.appendChild(contentContainer);
+
+            // 添加复制按钮（仅对AI助手的文本消息添加）
+            if (role === 'assistant' && !content.startsWith('[图片]') && 
+                !content.startsWith('[音频]') && !content.startsWith('[视频]') && 
+                !content.startsWith('[文件]')) {
+                const copyButtonContainer = document.createElement('div');
+                copyButtonContainer.className = 'copy-button-container';
+                
+                const copyButton = document.createElement('button');
+                copyButton.className = 'copy-button';
+                copyButton.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                `;
+                // 保存要复制的内容
+                const textToCopy = content;
+                copyButton.onclick = async (e) => {
+                    e.stopPropagation();
+                    try {
+                        await navigator.clipboard.writeText(textToCopy);
+                        copyButton.classList.add('copied');
+                        copyButton.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        `;
+                        setTimeout(() => {
+                            copyButton.classList.remove('copied');
+                            copyButton.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            `;
+                        }, 2000);
+                    } catch (err) {
+                        console.error('复制失败:', err);
+                    }
+                };
+                copyButtonContainer.appendChild(copyButton);
+                messageContentDiv.appendChild(copyButtonContainer);
+            }
+
+            messageDiv.appendChild(messageContentDiv);
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
         }
 
         function scrollToBottom() {
@@ -837,7 +1167,11 @@
                 const timestamp = addTypingIndicator();
                 
                 // 发送消息到服务器
-                ws.send(message);
+                ws.send(JSON.stringify({
+                    type: 'text',
+                    content: message,
+                    file_info: {}
+                }));
                 
                 // 清空输入框
                 messageInput.value = '';
@@ -1178,16 +1512,63 @@
         
         function handleMessageEnd(data) {
             if (currentAssistantMessage) {
-                // 获取消息内容的DOM元素
                 const contentDiv = currentAssistantMessage.querySelector('.message-content');
                 if (!contentDiv) {
                     console.error('找不到消息内容元素');
                     return;
                 }
                 
-                // 最后一次完整的渲染
                 try {
-                    contentDiv.innerHTML = marked.parse(currentAssistantMessage.rawContent);
+                    // 创建内容容器
+                    const contentContainer = document.createElement('div');
+                    contentContainer.className = 'content-container';
+                    contentContainer.innerHTML = marked.parse(currentAssistantMessage.rawContent);
+                    
+                    // 清空原有内容并添加新的内容容器
+                    contentDiv.innerHTML = '';
+                    contentDiv.appendChild(contentContainer);
+                    
+                    // 添加复制按钮
+                    const copyButtonContainer = document.createElement('div');
+                    copyButtonContainer.className = 'copy-button-container';
+                    
+                    const copyButton = document.createElement('button');
+                    copyButton.className = 'copy-button';
+                    copyButton.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    `;
+                    // 保存原始内容用于复制
+                    const originalContent = currentAssistantMessage.rawContent;
+                    copyButton.onclick = async (e) => {
+                        e.stopPropagation();
+                        try {
+                            await navigator.clipboard.writeText(originalContent);
+                            copyButton.classList.add('copied');
+                            copyButton.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            `;
+                            setTimeout(() => {
+                                copyButton.classList.remove('copied');
+                                copyButton.innerHTML = `
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                `;
+                            }, 2000);
+                        } catch (err) {
+                            console.error('复制失败:', err);
+                        }
+                    };
+                    copyButtonContainer.appendChild(copyButton);
+                    contentDiv.appendChild(copyButtonContainer);
+
+                    // 代码高亮
                     contentDiv.querySelectorAll('pre code').forEach((block) => {
                         hljs.highlightBlock(block);
                     });
@@ -1196,7 +1577,6 @@
                     console.error('最终Markdown渲染失败:', error);
                 }
                 
-                // 重置当前消息
                 currentAssistantMessage = null;
             }
             
@@ -1229,6 +1609,112 @@
                 network.fit();
             }
         });
+
+        let currentUpload = null;
+        
+        function showImagePreview(url) {
+            const previewDiv = document.getElementById('uploadPreview');
+            const imagePreview = document.getElementById('imagePreview');
+            const filePreview = document.getElementById('filePreview');
+            
+            imagePreview.src = url;
+            imagePreview.style.display = 'block';
+            filePreview.style.display = 'none';
+            previewDiv.style.display = 'block';
+        }
+        
+        function cancelUpload() {
+            const previewDiv = document.getElementById('uploadPreview');
+            const imagePreview = document.getElementById('imagePreview');
+            const filePreview = document.getElementById('filePreview');
+            
+            imagePreview.src = '';
+            imagePreview.style.display = 'none';
+            filePreview.style.display = 'none';
+            previewDiv.style.display = 'none';
+            currentUpload = null;
+        }
+        
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('上传失败');
+                
+                const data = await response.json();
+                // 保存当前上传的文件信息
+                currentUpload = {
+                    type: 'image',
+                    url: `/uploads/${data.filename}`,  // 添加完整的URL路径
+                    ...data
+                };
+                
+                // 直接发送包含图片信息的消息
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    // 添加用户消息到聊天界面
+                    addMessage('user', `[图片] ${file.name}`, false, undefined, currentUpload);
+                    
+                    // 添加打字机指示器
+                    const timestamp = addTypingIndicator();
+                    
+                    // 发送消息
+                    ws.send(JSON.stringify({
+                        type: 'image',
+                        content: file.name,
+                        file_info: data
+                    }));
+                }
+            } catch (error) {
+                console.error('上传失败:', error);
+                alert('上传失败');
+            }
+        }
+        
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('上传失败');
+                
+                const data = await response.json();
+                
+                // 发送包含文件信息的消息
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    // 添加用户消息到聊天界面
+                    addMessage('user', `[文件] ${file.name}`, false);
+                    
+                    // 添加打字机指示器
+                    const timestamp = addTypingIndicator();
+                    
+                    ws.send(JSON.stringify({
+                        type: 'file',
+                        content: file.name,
+                        file_info: data
+                    }));
+                }
+            } catch (error) {
+                console.error('上传失败:', error);
+                alert('上传失败');
+            }
+        }
     </script>
 </body>
 </html> 

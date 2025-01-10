@@ -1,14 +1,27 @@
-import sys
 import os
+import secrets
+import sys
+import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import aiofiles
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
-import secrets
 
 from core import Agent
 
@@ -16,8 +29,9 @@ from core import Agent
 security = HTTPBasic()
 
 # 设置用户名和密码（建议从环境变量获取）
-USERNAME = os.getenv("AUTH_USERNAME")
-PASSWORD = os.getenv("AUTH_PASSWORD")
+USERNAME = os.getenv("AUTH_USERNAME", "admin")
+PASSWORD = os.getenv("AUTH_PASSWORD", "admin123")
+
 
 def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
     """验证Basic Auth凭证"""
@@ -30,6 +44,7 @@ def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username
+
 
 # 配置logger
 logger.remove()  # 移除默认的处理器
@@ -59,6 +74,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 创建上传目录
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+# 挂载静态文件目录
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def get_home(username: str = Depends(verify_auth)):
@@ -78,10 +100,17 @@ async def websocket_endpoint(websocket: WebSocket):
 
         while True:
             try:
-                message = await websocket.receive_text()
-                logger.info(f"收到消息: {message[:50]}...")  # 记录收到的消息
-                async for chunk in agent.reply(message):
-                    if not chunk:  # 跳过空消息
+                data = await websocket.receive_json()
+
+                # 处理不同类型的消息
+                message_type = data.get("type", "text")
+                content = data.get("content", "")
+                file_info = data.get("file_info", {})
+
+                logger.info(f"收到消息: {content[:50]}...")
+
+                async for chunk in agent.reply(content, message_type, file_info):
+                    if not chunk:
                         continue
                     await websocket.send_json({"type": "message_chunk", "data": chunk})
 
@@ -99,7 +128,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.info("WebSocket连接断开")
                 break
             except Exception as e:
-                logger.error(f"消息处理错误: {e}")
+                logger.exception(f"消息处理错误: {e}")
                 await websocket.send_json({"type": "error", "data": "消息处理失败"})
     finally:
         if agent:
@@ -111,3 +140,32 @@ async def websocket_endpoint(websocket: WebSocket):
 async def global_exception_handler(request, exc):
     logger.error(f"全局错误: {exc}")
     return JSONResponse(status_code=500, content={"message": "服务器内部错误"})
+
+
+@app.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...), username: str = Depends(verify_auth)
+):
+    """处理文件上传"""
+    try:
+        # 生成唯一文件名
+        ext = Path(file.filename).suffix
+        filename = f"{uuid.uuid4()}{ext}"
+        filepath = UPLOAD_DIR / filename
+
+        # 保存文件
+        async with aiofiles.open(filepath, "wb") as f:
+            content = await file.read()
+            await f.write(content)
+
+        # 返回文件信息
+        return {
+            "filename": filename,
+            "original_name": file.filename,
+            "content_type": file.content_type,
+            "size": len(content),
+            "url": f"/uploads/{filename}",
+        }
+    except Exception as e:
+        logger.error(f"文件上传失败: {e}")
+        raise HTTPException(status_code=500, detail="文件上传失败")

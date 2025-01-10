@@ -6,3 +6,6 @@ websockets
 loguru
 black
 isort
+python-multipart
+aiofiles>=23.0
+pillow
