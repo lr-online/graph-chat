@@ -1545,7 +1545,25 @@
                     copyButton.onclick = async (e) => {
                         e.stopPropagation();
                         try {
-                            await navigator.clipboard.writeText(originalContent);
+                            // 尝试使用现代 Clipboard API
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                await navigator.clipboard.writeText(originalContent);
+                            } else {
+                                // 后备方案：创建临时文本区域
+                                const textArea = document.createElement('textarea');
+                                textArea.value = originalContent;
+                                textArea.style.position = 'fixed';
+                                textArea.style.left = '-9999px';
+                                textArea.style.top = '0';
+                                document.body.appendChild(textArea);
+                                textArea.focus();
+                                textArea.select();
+                                try {
+                                    document.execCommand('copy');
+                                } finally {
+                                    document.body.removeChild(textArea);
+                                }
+                            }
                             copyButton.classList.add('copied');
                             copyButton.innerHTML = `
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1562,7 +1580,8 @@
                                 `;
                             }, 2000);
                         } catch (err) {
-                            console.error('复制失败:', err);
+                            console.error('复制失败:', err.message);
+                            alert('复制失败，请手动复制文本');
                         }
                     };
                     copyButtonContainer.appendChild(copyButton);
