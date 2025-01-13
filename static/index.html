@@ -745,6 +745,138 @@
                 box-shadow: 0 0 4px rgba(52,168,83,0.4);
             }
         }
+
+        .graph-content {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #knowledge-graph {
+            flex: 1;
+            position: relative;
+            background-color: #fafafa;
+        }
+
+        .node-info-panel {
+            width: 300px;
+            border-left: 1px solid #eaeaea;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .node-info-panel.visible {
+            transform: translateX(0);
+        }
+
+        .node-info-header {
+            padding: 16px;
+            border-bottom: 1px solid #eaeaea;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-panel {
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            opacity: 0.6;
+            transition: all 0.2s;
+        }
+
+        .close-panel:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .close-panel svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .node-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+            color: #202124;
+        }
+
+        .node-info-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .node-basic-info {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .node-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #f1f3f4;
+            font-size: 12px;
+            color: #5f6368;
+            margin-bottom: 8px;
+        }
+
+        .node-description {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #202124;
+            margin-bottom: 16px;
+        }
+
+        .node-relations {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .relation-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #202124;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .relation-item:hover {
+            background: #f1f3f4;
+        }
+
+        .relation-arrow {
+            color: #5f6368;
+            margin: 0 6px;
+        }
+
+        .no-relations {
+            padding: 12px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -811,7 +943,24 @@
                     </button>
                 </div>
             </div>
-            <div id="knowledge-graph"></div>
+            <div class="graph-content">
+                <div id="knowledge-graph"></div>
+                <div class="node-info-panel">
+                    <div class="node-info-header">
+                        <h3 class="node-title">选择节点查看详情</h3>
+                        <div class="close-panel" onclick="closeNodeInfo()">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="node-info-content">
+                        <div class="node-basic-info"></div>
+                        <div class="node-relations"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1196,9 +1345,9 @@
             }
         }
 
-        // 初始化知识图谱
+        // 声明全局network变量
         let network = null;
-        
+
         function initGraph() {
             const container = document.getElementById('knowledge-graph');
             console.log('初始化知识图谱容器:', container);
@@ -1453,11 +1602,14 @@
                         const nodeId = params.nodes[0];
                         if (activeNode !== nodeId) {
                             highlightNode(nodeId);
+                            updateNodeInfo(nodeId);
                         } else {
                             resetHighlight();
+                            updateNodeInfo(null);
                         }
                     } else {
                         resetHighlight();
+                        updateNodeInfo(null);
                     }
                 });
 
@@ -1882,6 +2034,134 @@
                 console.error('Markdown渲染失败:', error);
                 return content;
             }
+        }
+
+        function updateNodeInfo(nodeId) {
+            // 确保network已经初始化
+            if (!network) return;
+
+            const nodeInfoPanel = document.querySelector('.node-info-panel');
+            const nodeTitle = nodeInfoPanel.querySelector('.node-title');
+            const nodeBasicInfo = nodeInfoPanel.querySelector('.node-basic-info');
+            const nodeRelations = nodeInfoPanel.querySelector('.node-relations');
+            
+            // 重置面板内容
+            nodeTitle.textContent = '选择节点查看详情';
+            nodeBasicInfo.innerHTML = '';
+            nodeRelations.innerHTML = '';
+
+            // 如果没有选中节点，隐藏面板并返回
+            if (!nodeId) {
+                nodeInfoPanel.classList.remove('visible');
+                return;
+            }
+            
+            // 获取节点数据
+            const node = network.body.data.nodes.get(nodeId);
+            if (!node) return;
+
+            // 显示面板
+            nodeInfoPanel.classList.add('visible');
+
+            // 更新标题
+            nodeTitle.textContent = node.label;
+
+            // 更新基本信息
+            nodeBasicInfo.innerHTML = `
+                <div class="node-type">${node.group || '未知类型'}</div>
+                <div class="node-description">${node.title || '暂无描述'}</div>
+            `;
+
+            // 获取相关的边
+            const connectedEdges = network.getConnectedEdges(nodeId);
+            if (!connectedEdges || connectedEdges.length === 0) {
+                nodeRelations.innerHTML = '<div class="no-relations">暂无相关联系</div>';
+                return;
+            }
+
+            const relations = [];
+
+            connectedEdges.forEach(edgeId => {
+                const edge = network.body.data.edges.get(edgeId);
+                const isOutgoing = edge.from === nodeId;
+                const otherNodeId = isOutgoing ? edge.to : edge.from;
+                const otherNode = network.body.data.nodes.get(otherNodeId);
+
+                relations.push({
+                    direction: isOutgoing ? 'outgoing' : 'incoming',
+                    relation: edge.label || '',
+                    nodeLabel: otherNode.label,
+                    nodeId: otherNodeId
+                });
+            });
+
+            // 更新关系列表样式
+            const relationItemStyle = `
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                font-size: 14px;
+                line-height: 1.5;
+                color: #202124;
+                transition: all 0.2s ease;
+            `;
+
+            // 更新关系列表
+            nodeRelations.innerHTML = relations.map(rel => `
+                <div class="relation-item" 
+                     onclick="focusNode('${rel.nodeId}')"
+                     style="${relationItemStyle}">
+                    ${rel.direction === 'outgoing' ? 
+                        `${node.label} <span class="relation-arrow">→</span> ${rel.relation} <span class="relation-arrow">→</span> ${rel.nodeLabel}` :
+                        `${rel.nodeLabel} <span class="relation-arrow">→</span> ${rel.relation} <span class="relation-arrow">→</span> ${node.label}`
+                    }
+                </div>
+            `).join('');
+        }
+
+        function focusNode(nodeId) {
+            if (!network) return;
+
+            network.focus(nodeId, {
+                scale: 1.2,
+                animation: {
+                    duration: 1000,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+            highlightNode(nodeId);
+            updateNodeInfo(nodeId);  // 更新节点信息面板
+        }
+
+        // 初始化时显示默认状态
+        window.addEventListener('load', () => {
+            // 确保在network初始化后显示默认状态
+            setTimeout(() => {
+                if (network) {
+                    updateNodeInfo(null);
+                }
+            }, 100);
+        });
+
+        // 添加ESC键关闭面板
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeNodeInfo();
+            }
+        });
+
+        function showNodeInfo() {
+            const panel = document.querySelector('.node-info-panel');
+            panel.classList.add('visible');
+        }
+
+        function closeNodeInfo() {
+            const panel = document.querySelector('.node-info-panel');
+            panel.classList.remove('visible');
+            resetHighlight();
         }
     </script>
 </body>
