@@ -896,7 +896,7 @@
                     <span id="connectionIndicator" class="connection-indicator"></span>
                     <textarea 
                         id="messageInput" 
-                        placeholder="输入消息... (Shift + Enter 换行)" 
+                        placeholder="输入消息... (Shift + Enter 换行, Ctrl+V 粘贴图片)" 
                         rows="1"
                         data-min-rows="1"
                     ></textarea>
@@ -1920,44 +1920,9 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) throw new Error('上传失败');
-                
-                const data = await response.json();
-                // 保存当前上传的文件信息
-                currentUpload = {
-                    type: 'image',
-                    url: `/uploads/${data.filename}`,  // 添加完整的URL路径
-                    ...data
-                };
-                
-                // 直接发送包含图片信息的消息
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    // 添加用户消息到聊天界面
-                    addMessage('user', `[图片] ${file.name}`, false, undefined, currentUpload);
-                    
-                    // 添加打字机指示器
-                    const timestamp = addTypingIndicator();
-                    
-                    // 发送消息
-                    ws.send(JSON.stringify({
-                        type: 'image',
-                        content: file.name,
-                        file_info: data
-                    }));
-                }
-            } catch (error) {
-                console.error('上传失败:', error);
-                alert('上传失败');
-            }
+            await handlePastedImage(file);
+            // 清空input的value，这样同一个文件可以重复选择
+            event.target.value = '';
         }
         
         async function handleFileUpload(event) {
@@ -2023,6 +1988,71 @@
                     }
                 }
             });
+
+            // 添加粘贴事件监听
+            textarea.addEventListener('paste', async (e) => {
+                // 阻止默认粘贴行为
+                if (e.clipboardData.files.length > 0) {
+                    e.preventDefault();
+                }
+                
+                // 处理粘贴的文件
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type.indexOf('image') !== -1) {
+                        // 获取粘贴的图片文件
+                        const file = item.getAsFile();
+                        await handlePastedImage(file);
+                        return;
+                    }
+                }
+            });
+        }
+
+        // 处理粘贴的图片
+        async function handlePastedImage(file) {
+            try {
+                // 创建FormData对象
+                const formData = new FormData();
+                formData.append('file', file, 'pasted_image.png');
+                
+                // 上传图片
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('上传失败');
+                
+                const data = await response.json();
+                
+                // 保存当前上传的文件信息
+                currentUpload = {
+                    type: 'image',
+                    url: `/uploads/${data.filename}`,
+                    ...data
+                };
+                
+                // 直接发送包含图片信息的消息
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    // 添加用户消息到聊天界面
+                    addMessage('user', `[图片] 已粘贴的图片`, false, undefined, currentUpload);
+                    
+                    // 添加打字机指示器
+                    const timestamp = addTypingIndicator();
+                    
+                    // 发送消息
+                    ws.send(JSON.stringify({
+                        type: 'image',
+                        content: '已粘贴的图片',
+                        file_info: data
+                    }));
+                }
+            } catch (error) {
+                console.error('处理粘贴图片失败:', error);
+                alert('处理粘贴的图片失败');
+            }
         }
 
         function renderMessage(content) {
