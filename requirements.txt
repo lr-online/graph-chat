@@ -9,3 +9,4 @@ isort
 python-multipart
 aiofiles>=23.0
 pillow
+pydantic-settings

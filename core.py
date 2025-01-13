@@ -11,7 +11,7 @@ import networkx as nx
 from loguru import logger
 from openai import AsyncOpenAI
 import aiofiles
-
+from config import settings
 
 class MessageType(Enum):
     TEXT = "text"
@@ -251,6 +251,8 @@ class MemoryManager:
     def __init__(self):
         self.messages: List[Message] = []
         self.oai_client = AsyncOpenAI(
+            base_url=settings.OPENAI_API_URL,
+            api_key=settings.OPENAI_API_KEY
         )
         self.knowledge_graph = KnowledgeGraph()
         self.last_knowledge_extraction: Optional[datetime] = None

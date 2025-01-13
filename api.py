@@ -24,13 +24,13 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from core import Agent
-
+from config import  settings
 # 初始化Basic Auth
 security = HTTPBasic()
 
 # 设置用户名和密码（建议从环境变量获取）
-USERNAME = os.getenv("AUTH_USERNAME", "admin")
-PASSWORD = os.getenv("AUTH_PASSWORD", "admin123")
+USERNAME = settings.AUTH_USERNAME
+PASSWORD = settings.AUTH_PASSWORD
 
 
 def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
