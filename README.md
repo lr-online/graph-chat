@@ -66,3 +66,19 @@ Graph-Chat是一个基于知识图谱的智能对话系统，能够在对话过�
 
 6. 访问应用
     打开浏览器访问 `http://localhost:9000`，输入配置的用户名和密码
+
+7. PR提取
+    欢迎提交PR，我们会尽快处理
+    步骤:
+    ```bash
+项目地址: https://github.com/lr-online/graph-chat
+git clone git@github.com:lr-online/graph-chat.git
+先fork到自己的仓库
+git remote -v （查看当前远程仓库地址）
+输出类似于：
+origin  git@github.com:lr-online/graph-chat.git (fetch)
+origin  git@github.com:lr-online/graph-chat.git (push)
+找到自己的Fork仓库地址：
+git remote set-url origin git@github.com:jacinli/graph-chat.git
+现在输入git remote -v，此时输出的应该是自己的git地址
+    ```

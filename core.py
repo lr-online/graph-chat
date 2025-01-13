@@ -251,7 +251,7 @@ class MemoryManager:
     def __init__(self):
         self.messages: List[Message] = []
         self.oai_client = AsyncOpenAI(
-            base_url=settings.OPENAI_API_URL,
+            base_url=settings.OPENAI_BASE_URL,
             api_key=settings.OPENAI_API_KEY
         )
         self.knowledge_graph = KnowledgeGraph()
