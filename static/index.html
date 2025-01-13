@@ -73,9 +73,54 @@
         .graph-header {
             padding: 15px;
             border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .graph-title {
             font-weight: bold;
             color: #333;
-            flex-shrink: 0;
+        }
+
+        .graph-search {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            border: 1px solid #e0e3e9;
+            border-radius: 20px;
+            padding: 4px 12px;
+            flex: 0 1 200px;
+        }
+
+        .graph-search input {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .graph-search button {
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        .graph-search button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .graph-search button:hover {
+            color: #333;
         }
 
         #knowledge-graph {
@@ -238,43 +283,108 @@
             background: #fff;
             display: flex;
             gap: 12px;
-            align-items: center;
+            align-items: flex-start;
             box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
+            position: relative;
+            min-height: 68px;
+            transition: all 0.3s ease;
         }
 
-        #messageInput {
+        .input-wrapper {
+            display: flex;
+            align-items: flex-start;
             flex-grow: 1;
-            padding: 10px;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
+            background: #fff;
+            border: 1px solid #dfe1e5;
+            border-radius: 24px;
+            padding: 8px 16px;
+            transition: all 0.3s ease;
+            min-height: 44px;
+            max-height: 30vh;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .input-wrapper:focus-within {
+            background: #fff;
+            border-color: #2b7de9;
+            box-shadow: 0 2px 6px rgba(43,125,233,0.15);
+            transform: translateY(-1px);
+        }
+
+        .input-wrapper textarea {
+            border: none;
+            resize: none;
+            flex-grow: 1;
+            padding: 6px 8px;
+            background: transparent;
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.88);
+            line-height: 1.5;
+            min-height: 28px;
+            max-height: calc(30vh - 32px);
+            overflow-y: auto;
+            font-family: inherit;
+            margin: 0;
             outline: none;
         }
 
+        .input-wrapper textarea::placeholder {
+            color: #9aa0a6;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+
+        .input-wrapper:focus-within textarea::placeholder {
+            color: #bdc1c6;
+        }
+
+        /* 自定义滚动条样式 */
+        .input-wrapper textarea::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .input-wrapper textarea::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .input-wrapper textarea::-webkit-scrollbar-thumb {
+            background: #e8eaed;
+            border-radius: 2px;
+        }
+
+        .input-wrapper textarea::-webkit-scrollbar-thumb:hover {
+            background: #dadce0;
+        }
+
         button {
-            padding: 4px 15px;
-            background-color: #007bff;
+            padding: 0 20px;
+            background-color: #2b7de9;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: 500;
-            font-size: 15px;
+            font-size: 14px;
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
             gap: 8px;
-            height: 44px;
+            height: 42px;
+            min-width: 86px;
+            justify-content: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            user-select: none;
         }
 
         button:hover {
-            background-color: #0056b3;
+            background-color: #1a73e8;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,123,255,0.2);
+            box-shadow: 0 4px 8px rgba(26,115,232,0.25);
         }
         
         button:active {
             transform: translateY(0);
-            box-shadow: 0 2px 6px rgba(0,123,255,0.2);
+            box-shadow: 0 2px 4px rgba(26,115,232,0.2);
         }
         
         button:disabled {
@@ -282,6 +392,7 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+            opacity: 0.7;
         }
 
         .message-timestamp {
@@ -387,172 +498,28 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            margin-right: 12px;
+            margin: 10px 4px;
             transition: all 0.3s ease;
-            flex-shrink: 0;
         }
 
         .connection-indicator.connected {
-            background-color: #28a745;
+            background-color: #34a853;
             animation: pulse 2s infinite;
         }
 
         .connection-indicator.disconnected {
-            background-color: #dc3545;
-        }
-
-        .connection-indicator.connecting {
-            background-color: #ffc107;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0; }
-            100% { opacity: 1; }
-        }
-
-        .input-wrapper {
-            display: flex;
-            align-items: center;
-            flex-grow: 1;
-            background: #fff;
-            border: 1px solid #e0e3e9;
-            border-radius: 24px;
-            padding: 0 16px;
-            transition: all 0.3s ease;
-            height: 44px;
-        }
-        
-        .input-wrapper:focus-within {
-            background: #fff;
-            border-color: #4096ff;
-            box-shadow: 0 0 0 2px rgba(64,150,255,.2);
-        }
-
-        .input-wrapper input {
-            border: none;
-            flex-grow: 1;
-            padding: 4px 11px;
-            background: transparent;
-            font-size: 15px;
-            color: rgba(0, 0, 0, 0.88);
-        }
-
-        .input-wrapper input:focus {
-            outline: none;
-        }
-
-        /* Markdown 样式 */
-        .message-content {
-            line-height: 1.5;
-        }
-
-        .message-content p {
-            margin: 0 0 1em;
-        }
-
-        .message-content p:last-child {
-            margin-bottom: 0;
-        }
-
-        .message-content pre {
-            background: #f8f9fa;
-            border-radius: 4px;
-            padding: 1em;
-            overflow-x: auto;
-            margin: 0.5em 0;
-        }
-
-        .message-content code {
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 0.9em;
-            padding: 0.2em 0.4em;
-            background: #f8f9fa;
-            border-radius: 3px;
-        }
-
-        .message-content pre code {
-            padding: 0;
-            background: transparent;
-        }
-
-        .message-content ul, .message-content ol {
-            margin: 0.5em 0;
-            padding-left: 1.5em;
-        }
-
-        .message-content blockquote {
-            margin: 0.5em 0;
-            padding-left: 1em;
-            border-left: 4px solid #e9ecef;
-            color: #666;
-        }
-
-        /* 调整用户消息中的 Markdown 样式 */
-        .message.user .message-content code {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .message.user .message-content pre {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .message.user .message-content blockquote {
-            border-left-color: rgba(255, 255, 255, 0.3);
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        /* Mermaid 图表样式 */
-        .mermaid {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            overflow-x: auto;
-            max-width: 100%;
-        }
-        
-        .mermaid svg {
-            max-width: 100%;
-            height: auto;
-        }
-        
-        .message.user .mermaid {
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        /* 等待渲染的 Mermaid 图表 */
-        .mermaid-loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-            background: #f8f9fa;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-
-        /* Mermaid 错误提示 */
-        .mermaid .error {
-            color: #dc3545;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-left: 4px solid #dc3545;
-            background: #f8d7da;
+            background-color: #ea4335;
+            animation: none;
         }
 
         .upload-buttons {
             display: flex;
             gap: 8px;
             padding-left: 8px;
-            border-left: 1px solid #d9d9d9;
+            border-left: 1px solid #e8eaed;
             margin-left: 4px;
+            align-items: center;
+            height: 28px;
         }
         
         .upload-button {
@@ -563,24 +530,26 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             position: relative;
+            opacity: 0.75;
         }
         
         .upload-button:hover {
-            background: rgba(0, 0, 0, 0.04);
+            background: rgba(32, 33, 36, 0.039);
+            opacity: 1;
         }
         
         .upload-button svg {
             width: 16px;
             height: 16px;
-            color: rgba(0, 0, 0, 0.45);
+            color: #5f6368;
             transition: all 0.2s;
         }
 
         .upload-button:hover svg {
-            color: rgba(0, 0, 0, 0.65);
+            color: #202124;
         }
         
         .upload-button input[type="file"] {
@@ -705,19 +674,16 @@
         /* 复制按钮独立样式 */
         .copy-button {
             padding: 4px;
-            height: 24px;
-            width: 24px;
-            font-size: 12px;
-            color: #666;
-            background: #fff;
-            border: 1px solid #e0e3e9;
-            border-radius: 4px;
+            border: none;
+            background: none;
             cursor: pointer;
+            opacity: 0.6;
+            transition: all 0.2s ease;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
-            z-index: 1;
         }
         
         .copy-button:hover {
@@ -747,6 +713,170 @@
             bottom: 0;
             padding: 6px 8px;
         }
+
+        /* 添加节点高亮相关的样式 */
+        .node-highlight {
+            transition: opacity 0.3s ease;
+        }
+
+        .node-dimmed {
+            opacity: 0.2;
+        }
+
+        .edge-highlight {
+            transition: opacity 0.3s ease;
+        }
+
+        .edge-dimmed {
+            opacity: 0.1;
+        }
+
+        @keyframes pulse {
+            0% { 
+                opacity: 1;
+                box-shadow: 0 0 4px rgba(52,168,83,0.4);
+            }
+            50% { 
+                opacity: 0.6;
+                box-shadow: 0 0 8px rgba(52,168,83,0.6);
+            }
+            100% { 
+                opacity: 1;
+                box-shadow: 0 0 4px rgba(52,168,83,0.4);
+            }
+        }
+
+        .graph-content {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #knowledge-graph {
+            flex: 1;
+            position: relative;
+            background-color: #fafafa;
+        }
+
+        .node-info-panel {
+            width: 300px;
+            border-left: 1px solid #eaeaea;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .node-info-panel.visible {
+            transform: translateX(0);
+        }
+
+        .node-info-header {
+            padding: 16px;
+            border-bottom: 1px solid #eaeaea;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-panel {
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            opacity: 0.6;
+            transition: all 0.2s;
+        }
+
+        .close-panel:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .close-panel svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .node-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 500;
+            color: #202124;
+        }
+
+        .node-info-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .node-basic-info {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .node-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #f1f3f4;
+            font-size: 12px;
+            color: #5f6368;
+            margin-bottom: 8px;
+        }
+
+        .node-description {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #202124;
+            margin-bottom: 16px;
+        }
+
+        .node-relations {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .relation-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #202124;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .relation-item:hover {
+            background: #f1f3f4;
+        }
+
+        .relation-arrow {
+            color: #5f6368;
+            margin: 0 6px;
+        }
+
+        .no-relations {
+            padding: 12px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -764,7 +894,12 @@
             <div class="input-container">
                 <div class="input-wrapper">
                     <span id="connectionIndicator" class="connection-indicator"></span>
-                    <input type="text" id="messageInput" placeholder="输入消息...">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="输入消息... (Shift + Enter 换行, Ctrl+V 粘贴图片)" 
+                        rows="1"
+                        data-min-rows="1"
+                    ></textarea>
                     <div class="upload-buttons">
                         <label class="upload-button" title="上传图片">
                             <input type="file" accept="image/*" onchange="handleImageUpload(event)" hidden>
@@ -796,8 +931,36 @@
         </div>
         
         <div class="graph-container">
-            <div class="graph-header">知识图谱</div>
-            <div id="knowledge-graph"></div>
+            <div class="graph-header">
+                <div class="graph-title">知识图谱</div>
+                <div class="graph-search">
+                    <input type="text" id="nodeSearchInput" placeholder="搜索节点...">
+                    <button id="searchNode">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="graph-content">
+                <div id="knowledge-graph"></div>
+                <div class="node-info-panel">
+                    <div class="node-info-header">
+                        <h3 class="node-title">选择节点查看详情</h3>
+                        <div class="close-panel" onclick="closeNodeInfo()">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="node-info-content">
+                        <div class="node-basic-info"></div>
+                        <div class="node-relations"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1158,6 +1321,7 @@
         }
 
         function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
             const message = messageInput.value.trim();
             if (message && ws && ws.readyState === WebSocket.OPEN) {
                 // 先添加用户消息到聊天界面
@@ -1175,16 +1339,15 @@
                 
                 // 清空输入框
                 messageInput.value = '';
-                
-                // 禁用发送按钮
+                messageInput.style.height = 'auto';
                 sendButton.disabled = true;
                 setTimeout(() => sendButton.disabled = false, 500);
             }
         }
 
-        // 初始化知识图谱
+        // 声明全局network变量
         let network = null;
-        
+
         function initGraph() {
             const container = document.getElementById('knowledge-graph');
             console.log('初始化知识图谱容器:', container);
@@ -1262,17 +1425,15 @@
                     zoomView: true,
                     dragView: true,
                     dragNodes: true,
-                    hideEdgesOnDrag: false,
-                    navigationButtons: true,
-                    keyboard: true,
+                    keyboard: {
+                        enabled: true,
+                        bindToWindow: false,
+                        speed: { x: 0, y: 0, zoom: 0.1 }  // 只保留缩放功能
+                    },
                     multiselect: true,
                     selectable: true,
                     selectConnectedEdges: false,
-                    hoverConnectedEdges: true,
-                    hover: true,
-                    zoomSpeed: 0.6,
-                    dragView: true,
-                    dragNodes: true
+                    hoverConnectedEdges: true
                 },
                 configure: false,  // 禁用配置按钮
                 groups: {         // 定义节点组样式
@@ -1349,6 +1510,106 @@
                                 }
                             });
                         }, 300);
+                    }
+                });
+
+                // 添加节点搜索功能
+                const searchInput = document.getElementById('nodeSearchInput');
+                const searchButton = document.getElementById('searchNode');
+
+                function searchNode() {
+                    const searchTerm = searchInput.value.toLowerCase();
+                    const allNodes = network.body.data.nodes.get();
+                    const foundNode = allNodes.find(node => 
+                        node.label.toLowerCase().includes(searchTerm)
+                    );
+
+                    if (foundNode) {
+                        network.focus(foundNode.id, {
+                            scale: 1.2,
+                            animation: {
+                                duration: 1000,
+                                easingFunction: 'easeInOutQuad'
+                            }
+                        });
+                        highlightNode(foundNode.id);
+                    }
+                }
+
+                searchButton.onclick = searchNode;
+                searchInput.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        searchNode();
+                    }
+                };
+
+                // 添加节点高亮功能
+                let highlightActive = false;
+                let activeNode = null;
+
+                function highlightNode(nodeId) {
+                    const allNodes = network.body.nodes;
+                    const allEdges = network.body.edges;
+                    
+                    // 获取相连的节点和边
+                    const connectedNodes = network.getConnectedNodes(nodeId);
+                    const connectedEdges = network.getConnectedEdges(nodeId);
+                    
+                    // 重置所有节点和边的状态
+                    Object.values(allNodes).forEach(node => {
+                        node.options.opacity = 0.2;
+                    });
+                    Object.values(allEdges).forEach(edge => {
+                        edge.options.opacity = 0.1;
+                    });
+                    
+                    // 高亮选中的节点和相关节点
+                    allNodes[nodeId].options.opacity = 1;
+                    connectedNodes.forEach(nodeId => {
+                        allNodes[nodeId].options.opacity = 0.8;
+                    });
+                    
+                    // 高亮相关的边
+                    connectedEdges.forEach(edgeId => {
+                        allEdges[edgeId].options.opacity = 0.8;
+                    });
+                    
+                    highlightActive = true;
+                    activeNode = nodeId;
+                    
+                    network.redraw();
+                }
+
+                function resetHighlight() {
+                    const allNodes = network.body.nodes;
+                    const allEdges = network.body.edges;
+                    
+                    Object.values(allNodes).forEach(node => {
+                        node.options.opacity = 1;
+                    });
+                    Object.values(allEdges).forEach(edge => {
+                        edge.options.opacity = 1;
+                    });
+                    
+                    highlightActive = false;
+                    activeNode = null;
+                    
+                    network.redraw();
+                }
+
+                network.on('click', function(params) {
+                    if (params.nodes.length > 0) {
+                        const nodeId = params.nodes[0];
+                        if (activeNode !== nodeId) {
+                            highlightNode(nodeId);
+                            updateNodeInfo(nodeId);
+                        } else {
+                            resetHighlight();
+                            updateNodeInfo(null);
+                        }
+                    } else {
+                        resetHighlight();
+                        updateNodeInfo(null);
                     }
                 });
 
@@ -1615,6 +1876,7 @@
             initializeElements();
             initGraph();  // 先初始化图谱
             connectWebSocket();  // 再建立连接
+            initTextarea();  // 初始化文本框
         };
 
         // 同时保留DOMContentLoaded事件监听
@@ -1658,44 +1920,9 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!response.ok) throw new Error('上传失败');
-                
-                const data = await response.json();
-                // 保存当前上传的文件信息
-                currentUpload = {
-                    type: 'image',
-                    url: `/uploads/${data.filename}`,  // 添加完整的URL路径
-                    ...data
-                };
-                
-                // 直接发送包含图片信息的消息
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    // 添加用户消息到聊天界面
-                    addMessage('user', `[图片] ${file.name}`, false, undefined, currentUpload);
-                    
-                    // 添加打字机指示器
-                    const timestamp = addTypingIndicator();
-                    
-                    // 发送消息
-                    ws.send(JSON.stringify({
-                        type: 'image',
-                        content: file.name,
-                        file_info: data
-                    }));
-                }
-            } catch (error) {
-                console.error('上传失败:', error);
-                alert('上传失败');
-            }
+            await handlePastedImage(file);
+            // 清空input的value，这样同一个文件可以重复选择
+            event.target.value = '';
         }
         
         async function handleFileUpload(event) {
@@ -1733,6 +1960,238 @@
                 console.error('上传失败:', error);
                 alert('上传失败');
             }
+        }
+
+        // 添加输入框自动调整高度的功能
+        function initTextarea() {
+            const textarea = document.getElementById('messageInput');
+            
+            function adjustHeight() {
+                textarea.style.height = 'auto';  // 重置高度
+                const scrollHeight = textarea.scrollHeight;
+                const maxHeight = window.innerHeight * 0.3;  // 30%的视窗高度
+                textarea.style.height = Math.min(scrollHeight, maxHeight) + 'px';
+            }
+            
+            textarea.addEventListener('input', adjustHeight);
+            
+            // 处理Shift+Enter和Enter键
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    if (e.shiftKey) {
+                        // Shift+Enter: 插入换行符
+                        return;
+                    } else {
+                        // 仅Enter: 发送消息
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                }
+            });
+
+            // 添加粘贴事件监听
+            textarea.addEventListener('paste', async (e) => {
+                // 阻止默认粘贴行为
+                if (e.clipboardData.files.length > 0) {
+                    e.preventDefault();
+                }
+                
+                // 处理粘贴的文件
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type.indexOf('image') !== -1) {
+                        // 获取粘贴的图片文件
+                        const file = item.getAsFile();
+                        await handlePastedImage(file);
+                        return;
+                    }
+                }
+            });
+        }
+
+        // 处理粘贴的图片
+        async function handlePastedImage(file) {
+            try {
+                // 创建FormData对象
+                const formData = new FormData();
+                formData.append('file', file, 'pasted_image.png');
+                
+                // 上传图片
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('上传失败');
+                
+                const data = await response.json();
+                
+                // 保存当前上传的文件信息
+                currentUpload = {
+                    type: 'image',
+                    url: `/uploads/${data.filename}`,
+                    ...data
+                };
+                
+                // 直接发送包含图片信息的消息
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    // 添加用户消息到聊天界面
+                    addMessage('user', `[图片] 已粘贴的图片`, false, undefined, currentUpload);
+                    
+                    // 添加打字机指示器
+                    const timestamp = addTypingIndicator();
+                    
+                    // 发送消息
+                    ws.send(JSON.stringify({
+                        type: 'image',
+                        content: '已粘贴的图片',
+                        file_info: data
+                    }));
+                }
+            } catch (error) {
+                console.error('处理粘贴图片失败:', error);
+                alert('处理粘贴的图片失败');
+            }
+        }
+
+        function renderMessage(content) {
+            try {
+                // 将换行符转换为<br>标签，然后再进行Markdown渲染
+                const preservedContent = content.replace(/\n/g, '  \n');
+                return marked.parse(preservedContent);
+            } catch (error) {
+                console.error('Markdown渲染失败:', error);
+                return content;
+            }
+        }
+
+        function updateNodeInfo(nodeId) {
+            // 确保network已经初始化
+            if (!network) return;
+
+            const nodeInfoPanel = document.querySelector('.node-info-panel');
+            const nodeTitle = nodeInfoPanel.querySelector('.node-title');
+            const nodeBasicInfo = nodeInfoPanel.querySelector('.node-basic-info');
+            const nodeRelations = nodeInfoPanel.querySelector('.node-relations');
+            
+            // 重置面板内容
+            nodeTitle.textContent = '选择节点查看详情';
+            nodeBasicInfo.innerHTML = '';
+            nodeRelations.innerHTML = '';
+
+            // 如果没有选中节点，隐藏面板并返回
+            if (!nodeId) {
+                nodeInfoPanel.classList.remove('visible');
+                return;
+            }
+            
+            // 获取节点数据
+            const node = network.body.data.nodes.get(nodeId);
+            if (!node) return;
+
+            // 显示面板
+            nodeInfoPanel.classList.add('visible');
+
+            // 更新标题
+            nodeTitle.textContent = node.label;
+
+            // 更新基本信息
+            nodeBasicInfo.innerHTML = `
+                <div class="node-type">${node.group || '未知类型'}</div>
+                <div class="node-description">${node.title || '暂无描述'}</div>
+            `;
+
+            // 获取相关的边
+            const connectedEdges = network.getConnectedEdges(nodeId);
+            if (!connectedEdges || connectedEdges.length === 0) {
+                nodeRelations.innerHTML = '<div class="no-relations">暂无相关联系</div>';
+                return;
+            }
+
+            const relations = [];
+
+            connectedEdges.forEach(edgeId => {
+                const edge = network.body.data.edges.get(edgeId);
+                const isOutgoing = edge.from === nodeId;
+                const otherNodeId = isOutgoing ? edge.to : edge.from;
+                const otherNode = network.body.data.nodes.get(otherNodeId);
+
+                relations.push({
+                    direction: isOutgoing ? 'outgoing' : 'incoming',
+                    relation: edge.label || '',
+                    nodeLabel: otherNode.label,
+                    nodeId: otherNodeId
+                });
+            });
+
+            // 更新关系列表样式
+            const relationItemStyle = `
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                font-size: 14px;
+                line-height: 1.5;
+                color: #202124;
+                transition: all 0.2s ease;
+            `;
+
+            // 更新关系列表
+            nodeRelations.innerHTML = relations.map(rel => `
+                <div class="relation-item" 
+                     onclick="focusNode('${rel.nodeId}')"
+                     style="${relationItemStyle}">
+                    ${rel.direction === 'outgoing' ? 
+                        `${node.label} <span class="relation-arrow">→</span> ${rel.relation} <span class="relation-arrow">→</span> ${rel.nodeLabel}` :
+                        `${rel.nodeLabel} <span class="relation-arrow">→</span> ${rel.relation} <span class="relation-arrow">→</span> ${node.label}`
+                    }
+                </div>
+            `).join('');
+        }
+
+        function focusNode(nodeId) {
+            if (!network) return;
+
+            network.focus(nodeId, {
+                scale: 1.2,
+                animation: {
+                    duration: 1000,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+            highlightNode(nodeId);
+            updateNodeInfo(nodeId);  // 更新节点信息面板
+        }
+
+        // 初始化时显示默认状态
+        window.addEventListener('load', () => {
+            // 确保在network初始化后显示默认状态
+            setTimeout(() => {
+                if (network) {
+                    updateNodeInfo(null);
+                }
+            }, 100);
+        });
+
+        // 添加ESC键关闭面板
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeNodeInfo();
+            }
+        });
+
+        function showNodeInfo() {
+            const panel = document.querySelector('.node-info-panel');
+            panel.classList.add('visible');
+        }
+
+        function closeNodeInfo() {
+            const panel = document.querySelector('.node-info-panel');
+            panel.classList.remove('visible');
+            resetHighlight();
         }
     </script>
 </body>
