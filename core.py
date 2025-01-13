@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import networkx as nx
 from loguru import logger
 from openai import AsyncOpenAI
+import aiofiles
 
 
 class MessageType(Enum):
@@ -249,7 +250,10 @@ class MemoryManager:
 
     def __init__(self):
         self.messages: List[Message] = []
-        self.oai_client = AsyncOpenAI()
+        self.oai_client = AsyncOpenAI(
+            base_url="https://oneapi.zhiji.ai/v1",
+            api_key="sk-JdThJGZXHF2PRYtTA00f78F9D4F54bDfA873287b36238d26",
+        )
         self.knowledge_graph = KnowledgeGraph()
         self.last_knowledge_extraction: Optional[datetime] = None
         logger.info("初始化记忆管理器")
@@ -487,29 +491,70 @@ class Agent:
     async def reply(
         self, user_input: str, message_type: str = "text", file_info: dict = None
     ):
-        """处理用户输入并生成回复
-
-        Args:
-            user_input: 用户输入的消息
-            message_type: 消息类型（text/image/file）
-            file_info: 文件相关信息
-
-        Yields:
-            生成的回复片段
-        """
+        """处理用户输入并生成回复"""
         try:
             logger.debug(f"处理用户输入: {user_input[:50]}...")
-            await self.memory.add_message(
-                user_input, "user", message_type, file_info or {}
-            )
+            
+            # 如果是文本文件，先处理文件内容
+            file_content = None
+            if message_type == "file" and file_info:
+                try:
+                    file_path = Path("uploads") / file_info.get("filename", "")
+                    if file_path.exists() and file_path.suffix.lower() in ['.txt', '.md', '.py', '.json', '.yaml', '.yml']:
+                        async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
+                            file_content = await f.read()
+                            
+                        # 分析文件内容并提取知识
+                        analysis_prompt = f"""分析以下文件内容，提取关键概念和知识点。
+                        文件名: {file_info.get('original_name')}
+                        文件内容:
+                        {file_content[:128_000]}  # 限制长度以避免超出token限制
+                        
+                        请提取以下信息:
+                        1. 文件的主要主题和目的
+                        2. 关键概念和术语
+                        3. 概念之间的关系
+                        
+                        以JSON格式返回:
+                        {{
+                            "topic": "文件主题",
+                            "concepts": [
+                                {{"concept": "概念名称", "type": "概念类型", "description": "概念描述"}}
+                            ],
+                            "relations": [
+                                {{"source": "源概念", "target": "目标概念", "relation": "关系类型"}}
+                            ]
+                        }}
+                        """
+                        
+                        response = await self.memory.oai_client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[{"role": "user", "content": analysis_prompt}],
+                            response_format={"type": "json_object"},
+                        )
+                        
+                        analysis = json.loads(response.choices[0].message.content)
+                        
+                        # 更新知识图谱
+                        self.memory.knowledge_graph.add_knowledge(analysis["concepts"])
+                        for relation in analysis["relations"]:
+                            self.memory.knowledge_graph.add_relation(
+                                relation["source"], relation["target"], relation["relation"]
+                            )
+                            
+                        # 将文件内容添加到用户消息中
+                        user_input = f"[文件分析] {file_info.get('original_name')}\n\n文件内容：\n{file_content[:500]}..."
+                except Exception as e:
+                    logger.error(f"文件处理失败: {e}")
+                    
+            # 添加用户消息
+            await self.memory.add_message(user_input, "user", message_type, file_info or {})
 
             # 获取相关上下文
             chat_history = "\n".join(
                 [f"{msg.role}: {msg.content}" for msg in self.memory.messages[-5:]]
             )
-            relevant_history = await self.memory.get_relevant_history(
-                user_input, top_k=3
-            )
+            relevant_history = await self.memory.get_relevant_history(user_input, top_k=3)
 
             # 获取相关知识
             related_concepts = set()
@@ -519,12 +564,14 @@ class Agent:
                         self.memory.knowledge_graph.get_related_concepts(node)
                     )
 
-            # 根据消息类型构建系统提示
+            # 构建系统提示
             type_prompt = ""
             if message_type == "image":
                 type_prompt = f"\n用户发送了一张图片，URL: {file_info.get('url', '')}"
             elif message_type == "file":
                 type_prompt = f"\n用户发送了一个文件，文件名: {file_info.get('original_name', '')}"
+                if file_content:
+                    type_prompt += "\n该文件的内容已经被分析并添加到知识库中。"
 
             # 构建完整的system prompt
             full_system_prompt = f"""{self.system_prompt}
@@ -539,7 +586,8 @@ class Agent:
                 {', '.join(related_concepts) if related_concepts else '无'}
                 {type_prompt}
 
-                请基于这些上下文来回答用户的问题。如果历史信息或相关概念对回答有帮助，可以参考它们，但不要直接重复这些内容。
+                请基于这些上下文来回答用户的问题。如果文件内容或相关概念对回答有帮助，请充分利用这些信息。
+                如果是在分析文件，请详细解释文件的主要内容和关键概念。
             """
 
             # 构建消息内容
