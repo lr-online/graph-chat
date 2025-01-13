@@ -251,8 +251,6 @@ class MemoryManager:
     def __init__(self):
         self.messages: List[Message] = []
         self.oai_client = AsyncOpenAI(
-            base_url="https://oneapi.zhiji.ai/v1",
-            api_key="sk-JdThJGZXHF2PRYtTA00f78F9D4F54bDfA873287b36238d26",
         )
         self.knowledge_graph = KnowledgeGraph()
         self.last_knowledge_extraction: Optional[datetime] = None
