@@ -62,6 +62,8 @@ Graph-Chat是一个基于知识图谱的智能对话系统，能够在对话过�
 
     ```bash
     uvicorn api:app --reload --port 9000
+   本地调试输出debug 日志 (以及将api.py中的loguru配置修改为debug 级别)
+   uvicorn api:app --reload --port 9000 --log-level debug
     ```
 
 6. 访问应用

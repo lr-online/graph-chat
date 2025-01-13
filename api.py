@@ -170,3 +170,9 @@ async def upload_file(
     except Exception as e:
         logger.error(f"文件上传失败: {e}")
         raise HTTPException(status_code=500, detail="文件上传失败")
+
+if __name__ == "__main__":
+    # 本地Debug运行
+    import uvicorn
+
+    uvicorn.run(app, host=settings.HOST, port=settings.PORT)

@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     AUTH_USERNAME: str = "admin"
     AUTH_PASSWORD: str = "admin123"
 
+    PORT: int = 9000
+    HOST: str = "0.0.0.0"
+
     # 可选的配置项，提供默认值
     LOG_LEVEL: str = "INFO"  # 默认日志级别
     DEBUG_MODE: Optional[bool] = False  # 默认非调试模式
