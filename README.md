@@ -80,5 +80,19 @@ origin  git@github.com:lr-online/graph-chat.git (fetch)
 origin  git@github.com:lr-online/graph-chat.git (push)
 找到自己的Fork仓库地址：
 git remote set-url origin git@github.com:jacinli/graph-chat.git
-现在输入git remote -v，此时输出的应该是自己的git地址
-    ```
+现在输入git remote -v，此时输出的应该是自己的git地址。
+
+git checkout -b feature/xxx
+git push
+然后将xxx分支进入到github 仓库，然后点击pull request
+注意：base repository 选择lr-online/graph-chat  base:main
+     head repository 选择自己的仓库  compare:feature/xxx
+
+为原始仓库作为新远程操作：
+git remote add upstream git@github.com:lr-online/graph-chat.git
+拉原始仓库命令
+git fetch upstream
+git checkout main
+git merge upstream/main
+（以上操作完成后Pycharm git 均会显示对应的远程分支）
+```
