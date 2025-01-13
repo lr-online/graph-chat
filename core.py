@@ -6,12 +6,13 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import AsyncGenerator,Any
 
 import networkx as nx
 from loguru import logger
 from openai import AsyncOpenAI
 import aiofiles
-
+from config import settings
 
 class MessageType(Enum):
     TEXT = "text"
@@ -251,6 +252,8 @@ class MemoryManager:
     def __init__(self):
         self.messages: List[Message] = []
         self.oai_client = AsyncOpenAI(
+            base_url=settings.OPENAI_BASE_URL,
+            api_key=settings.OPENAI_API_KEY
         )
         self.knowledge_graph = KnowledgeGraph()
         self.last_knowledge_extraction: Optional[datetime] = None
@@ -488,7 +491,7 @@ class Agent:
 
     async def reply(
         self, user_input: str, message_type: str = "text", file_info: dict = None
-    ):
+    ) -> AsyncGenerator[Any, None]:
         """处理用户输入并生成回复"""
         try:
             logger.debug(f"处理用户输入: {user_input[:50]}...")

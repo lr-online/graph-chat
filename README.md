@@ -62,7 +62,39 @@ Graph-Chat是一个基于知识图谱的智能对话系统，能够在对话过�
 
     ```bash
     uvicorn api:app --reload --port 9000
+   本地调试输出debug 日志 (以及将api.py中的loguru配置修改为debug 级别)
+   uvicorn api:app --reload --port 9000 --log-level debug
     ```
 
 6. 访问应用
     打开浏览器访问 `http://localhost:9000`，输入配置的用户名和密码
+
+7. PR提取
+    欢迎提交PR，我们会尽快处理
+    步骤:
+    ```bash
+项目地址: https://github.com/lr-online/graph-chat
+git clone git@github.com:lr-online/graph-chat.git
+先fork到自己的仓库
+git remote -v （查看当前远程仓库地址）
+输出类似于：
+origin  git@github.com:lr-online/graph-chat.git (fetch)
+origin  git@github.com:lr-online/graph-chat.git (push)
+找到自己的Fork仓库地址：
+git remote set-url origin git@github.com:jacinli/graph-chat.git
+现在输入git remote -v，此时输出的应该是自己的git地址。
+
+git checkout -b feature/xxx
+git push
+然后将xxx分支进入到github 仓库，然后点击pull request
+注意：base repository 选择lr-online/graph-chat  base:main
+     head repository 选择自己的仓库  compare:feature/xxx
+
+为原始仓库作为新远程操作：
+git remote add upstream git@github.com:lr-online/graph-chat.git
+拉原始仓库命令
+git fetch upstream
+git checkout main
+git merge upstream/main
+（以上操作完成后Pycharm git 均会显示对应的远程分支）
+```
