@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  neo4j:
+    image: neo4j:5.12
+    container_name: neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474" # 浏览器 UI 访问端口
+      - "7687:7687" # Bolt 协议访问端口
+    environment:
+      # Neo4j 默认用户名和强密码
+      - NEO4J_AUTH=neo4j/qazwsx123!
+
+
+
+# 运行命令 ：docker-compose -f neo4j-docker-compose.yaml up -d
