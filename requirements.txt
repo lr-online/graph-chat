@@ -10,3 +10,4 @@ python-multipart
 aiofiles>=23.0
 pillow
 pydantic-settings
+neo4j
