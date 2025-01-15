@@ -22,9 +22,14 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from types import SimpleNamespace
 
 from core import Agent
 from config import  settings
+from infrastructure.neo4j_manager import Neo4jConnectionPool, Neo4jManager
+from core_neo4j import AgentWithNeo4j
+from knowledge_graph import Neo4jKnowledgeGraph
+from contants.graph_db_contants import KnowledgeGraphType
 # 初始化Basic Auth
 security = HTTPBasic()
 
@@ -54,13 +59,36 @@ logger.add(
     level="INFO",
 )
 
+# 全局的 Neo4j 连接池
+if settings.KNOWLEDGE_GRAPH_BACKEND == KnowledgeGraphType.NEO4J.value:
+    neo4j_pool = Neo4jConnectionPool(
+        uri=settings.NEO4J_URI,
+        username=settings.NEO4J_USERNAME,
+        password=settings.NEO4J_PASSWORD,
+        max_size=5
+    )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """处理应用的生命周期事件"""
-    logger.info("服务启动")
-    yield
-    logger.info("服务关闭")
+    if settings.KNOWLEDGE_GRAPH_BACKEND == KnowledgeGraphType.NEO4J.value:
+        logger.info("服务启动: 初始化 Neo4j 连接池")
+        await neo4j_pool.init_pool()
+
+        # 初始化 Neo4jManager 和 Neo4jKnowledgeGraph
+        neo4j_manager = Neo4jManager(neo4j_pool)
+        app.state = SimpleNamespace()  # 添加一个可扩展的命名空间
+
+        app.state.neo4j_knowledge_graph = Neo4jKnowledgeGraph(neo4j_manager)
+        logger.info("Neo4j 知识图谱已初始化")
+
+    try:
+        yield
+    finally:
+        if settings.KNOWLEDGE_GRAPH_BACKEND == KnowledgeGraphType.NEO4J.value:
+            logger.info("服务关闭: 释放 Neo4j 连接池")
+            await neo4j_pool.close()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -96,7 +124,14 @@ async def websocket_endpoint(websocket: WebSocket):
     agent = None
     try:
         await websocket.accept()
-        agent = Agent()
+        # 动态初始化 AgentWithNeo4j
+        if settings.KNOWLEDGE_GRAPH_BACKEND == KnowledgeGraphType.NEO4J.value:
+            # 使用应用全局的 Neo4j 知识图谱
+            neo4j_knowledge_graph = app.state.neo4j_knowledge_graph
+            agent = AgentWithNeo4j(neo4j_manager=neo4j_knowledge_graph.neo4j_manager)
+        else:
+            # 回退到本地 MemoryManager
+            agent = Agent()
         logger.info("新的WebSocket连接建立")
 
         while True:
@@ -121,7 +156,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
 
                 # 发送知识图谱更新
-                graph_data = agent.memory.knowledge_graph.get_graph_data()
+                if settings.KNOWLEDGE_GRAPH_BACKEND == KnowledgeGraphType.NEO4J.value:
+                    graph_data =await agent.memory.knowledge_graph.get_graph_data_front()
+                # elif settings.KNOWLEDGE_GRAPH_BACKEND == KnowledgeGraphType.MEMORY.value:
+                else:
+                    graph_data = agent.memory.knowledge_graph.get_graph_data()
                 await websocket.send_json({"type": "graph_update", "data": graph_data})
                 logger.debug("知识图谱更新已发送")
 
@@ -175,4 +214,4 @@ if __name__ == "__main__":
     # 本地Debug运行
     import uvicorn
 
-    uvicorn.run(app, host=settings.HOST, port=settings.PORT)
+    uvicorn.run("api:app", host=settings.HOST, port=settings.PORT,reload=True)
