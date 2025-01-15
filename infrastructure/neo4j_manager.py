@@ -1,10 +1,9 @@
-from neo4j import AsyncGraphDatabase
-from typing import List, Dict, Optional
 import asyncio
-import logging
+import uuid
+from typing import List, Dict, Optional
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from loguru import logger
+from neo4j import AsyncGraphDatabase
 
 
 class Neo4jConnectionPool:
@@ -62,7 +61,7 @@ class Neo4jManager:
         执行查询并返回结果
         """
         async with self._connection_pool as session:
-            logger.info(f"执行查询: {query} 参数: {parameters}")
+            logger.debug(f"执行查询: {query} 参数: {parameters}")
             result = await session.run(query, parameters or {})
             data = []
             async for record in result:
@@ -70,33 +69,32 @@ class Neo4jManager:
             return data
 
     async def create_node(self, label: str, properties: Dict[str, str]):
-        """创建节点"""
+        """创建节点并为其分配 UUID"""
+        properties["uuid"] = str(uuid.uuid4())  # 为节点生成唯一的 UUID
         query = f"CREATE (n:{label} $props) RETURN n"
         return await self.execute_query(query, {"props": properties})
 
-    async def create_relationship(
-        self,
-        source_label: str,
-        source_properties: dict,
-        target_label: str,
-        target_properties: dict,
-        relationship_type: str,
-        relationship_properties: dict = None,
-    ):
-        """创建关系"""
-        relationship_properties = relationship_properties or {}
-        source_conditions = " AND ".join([f"a.{key} = ${key}" for key in source_properties.keys()])
-        target_conditions = " AND ".join([f"b.{key} = ${key}" for key in target_properties.keys()])
-        relationship_props = ", ".join([f"{key}: ${key}" for key in relationship_properties.keys()])
-
-        query = f"""
-        MATCH (a:{source_label}), (b:{target_label})
-        WHERE {source_conditions} AND {target_conditions}
-        MERGE (a)-[r:{relationship_type} {{{relationship_props}}}]->(b)
+    async def create_relationship(self, source: str, target: str, relation: str, props: dict = None):
+        """在两个节点之间创建关系"""
+        props = props or {}
+        query = """
+        MATCH (a:Concept {name: $source, uuid: $source_uuid}), 
+              (b:Concept {name: $target, uuid: $target_uuid})
+        MERGE (a)-[r:RELATION_TYPE]->(b)
+        SET r += $props
         RETURN r
         """
-        parameters = {**source_properties, **target_properties, **relationship_properties}
-        return await self.execute_query(query, parameters)
+        query = query.replace("RELATION_TYPE", relation)
+        params = {
+            "source": source,
+            "source_uuid": props.get("source_uuid"),
+            "target": target,
+            "target_uuid": props.get("target_uuid"),
+            "props": props,
+        }
+
+        logger.debug(f"Creating relationship with query: {query}, params: {params}")
+        await self.execute_query(query, params)
 
     async def update_node_properties(self, label: str, properties: dict, new_properties: dict):
         """更新节点属性"""
@@ -112,84 +110,51 @@ class Neo4jManager:
         return await self.execute_query(query, parameters)
 
     async def update_relationship_properties(
-        self, source_label: str, target_label: str, relation: str, new_properties: dict
+            self, source_properties: dict, target_properties: dict, relation: str, new_properties: dict
     ):
         """更新关系属性"""
+        source_conditions = " AND ".join([f"a.{key} = ${key}" for key in source_properties.keys()])
+        target_conditions = " AND ".join([f"b.{key} = ${key}" for key in target_properties.keys()])
         updates = ", ".join([f"r.{key} = ${key}" for key in new_properties.keys()])
+
         query = f"""
-        MATCH (a:{source_label})-[r:{relation}]->(b:{target_label})
+        MATCH (a)-[r:{relation}]->(b)
+        WHERE {source_conditions} AND {target_conditions}
         SET {updates}
         RETURN r
         """
-        return await self.execute_query(query, new_properties)
+        parameters = {**source_properties, **target_properties, **new_properties}
+        return await self.execute_query(query, parameters)
 
     async def get_all_nodes(self, label: Optional[str] = None) -> List[Dict]:
         """获取所有节点"""
-        query = f"MATCH (n{':' + label if label else ''}) RETURN n"
+        query = f"MATCH (n{':' + label if label else ''}) RETURN n.uuid AS uuid, labels(n) AS labels, n AS properties"
         result = await self.execute_query(query)
         return [
             {
-                "labels": record["n"].get("labels", []),
-                "properties": record["n"],  # record["n"] 已经是节点属性的字典
+                "uuid": record["uuid"],
+                "labels": record["labels"],
+                "properties": record["properties"],
             }
             for record in result
         ]
 
-    async def get_relationships(self, source_label: str, target_label: str, relation: str) -> List[Dict]:
+    async def get_relationships(self, source_properties: dict, target_properties: dict, relation: str) -> List[Dict]:
         """获取特定关系及其关联节点"""
+        source_conditions = " AND ".join([f"a.{key} = ${key}" for key in source_properties.keys()])
+        target_conditions = " AND ".join([f"b.{key} = ${key}" for key in target_properties.keys()])
         query = f"""
-        MATCH (a:{source_label})-[r:{relation}]->(b:{target_label})
-        RETURN id(a) as source_id, labels(a) as source_labels, a as source_properties,
-               id(r) as relationship_id, type(r) as relationship_type, r as relationship_properties,
-               id(b) as target_id, labels(b) as target_labels, b as target_properties
+        MATCH (a)-[r:{relation}]->(b)
+        WHERE {source_conditions} AND {target_conditions}
+        RETURN a.name AS source, b.name AS target, r.type AS relation
         """
-        result = await self.execute_query(query)
+        parameters = {**source_properties, **target_properties}
+        result = await self.execute_query(query, parameters)
         return [
             {
-                "source": {
-                    "id": record["source_id"],
-                    "labels": record["source_labels"],
-                    "properties": record["source_properties"],
-                },
-                "relationship": {
-                    "id": record["relationship_id"],
-                    "type": record["relationship_type"],
-                    "properties": record["relationship_properties"],
-                },
-                "target": {
-                    "id": record["target_id"],
-                    "labels": record["target_labels"],
-                    "properties": record["target_properties"],
-                },
-            }
-            for record in result
-        ]
-
-    async def get_related_concepts(self, label: str, properties: dict, relation: str, max_distance: int = 2) -> List[
-        Dict]:
-        """获取节点的所有关联关系（支持多跳）"""
-        conditions = " AND ".join([f"n.{key} = ${key}" for key in properties.keys()])
-        query = f"""
-        MATCH p = (n:{label})-[r:{relation}*1..{max_distance}]-(m)
-        WHERE {conditions}
-        RETURN n, r, m
-        """
-        result = await self.execute_query(query, properties)
-        return [
-            {
-                "source": {
-                    "id": record["n"].id,
-                    "labels": list(record["n"].labels),
-                    "properties": dict(record["n"]),
-                },
-                "relationships": [
-                    {"type": rel.type, "properties": dict(rel)} for rel in record["r"]
-                ],
-                "target": {
-                    "id": record["m"].id,
-                    "labels": list(record["m"].labels),
-                    "properties": dict(record["m"]),
-                },
+                "source": record["source"],
+                "target": record["target"],
+                "relation": record["relation"]
             }
             for record in result
         ]
@@ -205,32 +170,6 @@ class Neo4jManager:
         result = await self.execute_query(query, properties)
         return result[0]["exists"] if result else False
 
-    async def export_graph(self) -> Dict:
-        """导出图谱结构用于前端可视化"""
-        query = """
-        MATCH (n)-[r]->(m)
-        RETURN n, r, m
-        """
-        result = await self.execute_query(query)
-        nodes, edges = {}, []
-        for record in result:
-            node_a = record["n"]
-            node_b = record["m"]
-            relationship = record["r"]
-
-            # 节点信息
-            nodes[node_a.id] = {**node_a}
-            nodes[node_b.id] = {**node_b}
-
-            # 边信息
-            edges.append({
-                "source": node_a.id,
-                "target": node_b.id,
-                "relation": relationship.type,
-            })
-
-        return {"nodes": nodes, "edges": edges}
-
     async def delete_node(self, label: str, properties: dict):
         """删除节点及其关联关系"""
         conditions = " AND ".join([f"n.{key} = ${key}" for key in properties.keys()])
@@ -241,36 +180,64 @@ class Neo4jManager:
         """
         await self.execute_query(query, properties)
 
-    async def delete_relationship(self, source_label: str, target_label: str, relation: str):
+    async def delete_relationship(self, source_properties: dict, target_properties: dict, relation: str):
         """删除特定关系"""
+        source_conditions = " AND ".join([f"a.{key} = ${key}" for key in source_properties.keys()])
+        target_conditions = " AND ".join([f"b.{key} = ${key}" for key in target_properties.keys()])
         query = f"""
-        MATCH (a:{source_label})-[r:{relation}]->(b:{target_label})
+        MATCH (a)-[r:{relation}]->(b)
+        WHERE {source_conditions} AND {target_conditions}
         DELETE r
         """
-        await self.execute_query(query)
+        parameters = {**source_properties, **target_properties}
+        await self.execute_query(query, parameters)
 
     async def delete_all_nodes(self):
         """删除所有节点及其关联关系"""
         query = "MATCH (n) DETACH DELETE n"
         await self.execute_query(query)
 
+
 # 测试代码
 if __name__ == '__main__':
     async def test_neo4j():
-        pool = Neo4jConnectionPool(uri="bolt://localhost:7687", username="neo4j", password="qazwsx123!", max_size=5)
+        # 初始化连接池
+        pool = Neo4jConnectionPool(
+            uri="bolt://localhost:7687",
+            username="neo4j",
+            password="qazwsx123!",
+            max_size=5
+        )
         await pool.init_pool()
 
+        # 初始化 Neo4j 管理器
         manager = Neo4jManager(connection_pool=pool)
 
-        await manager.delete_all_nodes()
-        await manager.create_node("Person", {"name": "Alice"})
-        await manager.create_node("Person", {"name": "Bob"})
-        await manager.create_relationship(
-            "Person", {"name": "Alice"}, "Person", {"name": "Bob"}, "KNOWS", {"created_at": "2025-01-01"}
-        )
-        print(await manager.get_all_nodes())
-        print(await manager.get_relationships("Person", "Person", "KNOWS"))
+        try:
+            print("========== 清空数据库 ==========")
+            await manager.delete_all_nodes()
 
-        await pool.close() # 关闭连接池，而正式部署：连接池会在整个服务生命周期中一直存在并管理连接
+            print("========== 创建节点 ==========")
+            alice_properties = {"name": "Alice"}
+            bob_properties = {"name": "Bob"}
+
+            # 创建节点
+            await manager.create_node("Concept", alice_properties)
+            print(f"创建节点: {alice_properties}")
+            await manager.create_node("Concept", bob_properties)
+            print(f"创建节点: {bob_properties}")
+
+            print("\n========== 获取所有节点 ==========")
+            nodes = await manager.get_all_nodes(label="Concept")
+            for node in nodes:
+                print(node)
+
+
+
+        except Exception as e:
+            print(f"Error during Neo4j operations: {e}")
+        finally:
+            print("\n========== 关闭连接池 ==========")
+            await pool.close()
 
     asyncio.run(test_neo4j())
